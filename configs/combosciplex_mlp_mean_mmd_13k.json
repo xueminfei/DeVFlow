@@ -1,0 +1,129 @@
+{
+  "task": "combosciplex",
+  "data": {
+    "bundle": "${DEVFLOW_DATA_ROOT}/combosciplex/combinations_v3_train18_test5",
+    "drug_bank": "${DEVFLOW_ASSET_ROOT}/combosciplex/mapkg_drug_embeddings.pt",
+    "mlp_assets": "outputs/combosciplex_mlp_mean_mmd_13k/assets/mean",
+    "evaluation_references": "${DEVFLOW_ASSET_ROOT}/combosciplex/references",
+    "de50_references": "${DEVFLOW_ASSET_ROOT}/combosciplex/de50_reference.npz",
+    "evaluation_assets": "outputs/combosciplex_mlp_mean_mmd_13k/assets/evaluation"
+  },
+  "model": {
+    "family": "mlp_mean",
+    "config": {
+      "state_dim": 2048,
+      "condition_dim": 2052,
+      "source_condition": false,
+      "direct_condition": true,
+      "condition_output_dropout": 0.1,
+      "initialization_policy": "duplicate_drug_slots",
+      "decoder_checkpoint_family": "MAP_true_SE_decoder_reconstruction"
+    },
+    "decoder_checkpoint": "${DEVFLOW_WEIGHT_ROOT}/combosciplex/strong_decoder.pt",
+    "loss_weights": {
+      "flow_residual": 1.0,
+      "flow_mean": 32.0,
+      "decoder_mmd": 1.0,
+      "head": 1.0
+    }
+  },
+  "training": {
+    "checkpoint": null,
+    "max_updates": 13000,
+    "world_size": 4,
+    "seed": 42,
+    "precision": "bf16",
+    "allow_tf32": true,
+    "pairs_per_condition": 256,
+    "ot_candidates": 256,
+    "decoder_cells": 256,
+    "gradient_accumulation": 4,
+    "time_points": 80,
+    "learning_rates": {
+      "flow": 5e-05,
+      "decoder": 5e-05,
+      "head": 0.001
+    },
+    "gradient_clip": {
+      "flow": 1.0,
+      "decoder": 1.0,
+      "head": 1.0
+    },
+    "schedule": {
+      "type": "cosine",
+      "start": 500,
+      "end": 13000,
+      "min_factor": 0.1
+    },
+    "checkpoint_every": 500,
+    "log_every": 10,
+    "monitor_every": 50,
+    "cpu_threads": 2
+  },
+  "mean_head": {
+    "kernel": "canonical_pair_concat_MAPKG_RBF_Morgan_Tanimoto",
+    "selection": "leave_one_training_combination_out",
+    "kg_mix_grid": [
+      0.0,
+      0.5,
+      1.0
+    ],
+    "gamma_factor_grid": [
+      0.5,
+      1.0,
+      2.0
+    ],
+    "alpha_grid": [
+      0.001,
+      0.01,
+      0.1,
+      1.0,
+      10.0
+    ],
+    "selection_metric": "delta_mse_2000_genes",
+    "morgan_radius": 2,
+    "morgan_bits": 2048
+  },
+  "evaluation": {
+    "mean_every": 500,
+    "mean_seeds": [
+      4243
+    ],
+    "full_every": 1000,
+    "monitor_seeds": [
+      4243
+    ],
+    "final_four_seeds": true,
+    "time_points": 80,
+    "precision": "fp32",
+    "cells": 128,
+    "allow_tf32": false,
+    "evaluation_overhead_target": 0.1
+  },
+  "prediction": {
+    "checkpoint": null,
+    "seeds": [
+      4243,
+      4244,
+      4245,
+      4246
+    ],
+    "cells": 128,
+    "time_points": 80,
+    "chunk": 128,
+    "device": "cuda:0"
+  },
+  "selection": {
+    "protocol": "external_selected_exploratory",
+    "primary_metric": "weighted_mse",
+    "direction": "min",
+    "tie_break": "earliest_update",
+    "benchmark_selected": true,
+    "single_checkpoint_for_all_reported_metrics": true
+  },
+  "output_dir": "outputs/combosciplex_mlp_mean_mmd_13k",
+  "purpose": "Fresh Combo 13k optimizer updates; trainable mean and decoder-only MMD; external-selected exploratory four-seed result",
+  "reporting": {
+    "method": "DeVFlow Combo MLP + trainable mixed-kernel mean + decoder MMD (13k)"
+  }
+}

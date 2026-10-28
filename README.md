@@ -46,11 +46,12 @@ Choose a configuration and fill in the required input paths:
 | Dataset | Configuration |
 | --- | --- |
 | SciPlex3 | [MLP + trainable mean + MMD, 50k steps](configs/sciplex3_mlp_mean_mmd_50k.json) |
-| ComboSciPlex | [Combination prediction](configs/combosciplex.json) |
+| ComboSciPlex | [MLP + trainable mean + MMD, 13k steps](configs/combosciplex_mlp_mean_mmd_13k.json) |
 | Norman | [Additive split](configs/norman_additive.json) |
 
-The trainable mean/MMD recipe currently runs on SciPlex3. ComboSciPlex and Norman
-use their existing dataset-specific recipes.
+SciPlex3 and ComboSciPlex support the trainable mean/MMD recipe. Norman uses
+its existing dataset-specific recipe. The historical Combo recipe remains in
+`configs/combosciplex.json`.
 
 For SciPlex3, prepare the assets and start training on eight GPUs:
 
@@ -59,6 +60,18 @@ python -m devflow.cli sciplex3 --config configs/sciplex3_mlp_mean_mmd_50k.json p
 python -m torch.distributed.run --standalone --nproc_per_node=8 \
   -m devflow.cli sciplex3 --config configs/sciplex3_mlp_mean_mmd_50k.json train
 ```
+
+For ComboSciPlex, prepare the training-only mean assets and start on four GPUs:
+
+```bash
+python -m devflow.cli combosciplex --config configs/combosciplex_mlp_mean_mmd_13k.json prepare
+python -m torch.distributed.run --standalone --nproc_per_node=4 \
+  -m devflow.cli combosciplex --config configs/combosciplex_mlp_mean_mmd_13k.json train
+```
+
+The new Combo recipe monitors sampling seed 4243 and reports four repeats
+(4243–4246), reusing matching online predictions. Checkpoint selection by
+external-test HVG wMSE is exploratory.
 
 For prediction or evaluation, set `prediction.checkpoint` in the configuration
 to the saved model:
@@ -71,7 +84,7 @@ python -m devflow.cli sciplex3 --config YOUR_CONFIG.json evaluate
 Use `python -m devflow.cli TASK --help` for each dataset's available commands,
 where `TASK` is `sciplex3`, `combosciplex` or `norman`.
 Checkpoints, metrics and predictions are saved under `outputs/`.
-SciPlex3 training also generates `monitor.ipynb` and `monitor.html` in its run directory.
+Mean/MMD training also generates live monitor notebooks and HTML in its run directory.
 
 ## Paper
 

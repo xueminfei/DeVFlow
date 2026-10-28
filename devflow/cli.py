@@ -18,12 +18,14 @@ _ACTIONS = {
         "monitor": ("devflow.runtime.monitor", "build_monitor"),
     },
     "combosciplex": {
+        "prepare": ("devflow.data.combo_mean_assets", "prepare_assets"),
         "validate": ("recipes.combosciplex", "validate_config"),
         "train": ("recipes.combosciplex", "train"),
         "predict": ("recipes.combosciplex", "predict"),
         "evaluate": ("recipes.combosciplex", "evaluate"),
         "references": ("recipes.combosciplex", "export_references"),
         "export-references": ("recipes.combosciplex", "export_references"),
+        "monitor": ("devflow.runtime.monitor", "build_monitor"),
     },
     "norman": {
         "validate": ("devflow.runtime.norman", "validate_config"),
@@ -48,11 +50,27 @@ def run(task, action, config):
     if config.get("task", task) not in expected:
         raise ValueError(f"Configuration task {config.get('task')!r} does not match {task!r}")
     mlp = task == "sciplex3" and config.get("model", {}).get("family") == "mlp_mean"
+    if task == "combosciplex" and config.get("model", {}).get("family") == "mlp_mean":
+        actions = {
+            "prepare": ("recipes.combosciplex_mlp", "prepare"),
+            "validate": ("recipes.combosciplex_mlp", "validate_config"),
+            "train": ("devflow.runtime.train_mlp_mean", "train"),
+            "predict": ("devflow.runtime.evaluate_combosciplex_mlp", "predict"),
+            "evaluate": ("devflow.runtime.evaluate_combosciplex_mlp", "evaluate_checkpoint"),
+            "references": ("devflow.runtime.evaluate_combosciplex_mlp", "prepare_references"),
+            "export-references": ("devflow.runtime.evaluate_combosciplex_mlp", "prepare_references"),
+            "monitor": ("devflow.runtime.monitor", "build_monitor"),
+        }
+        if action in {"train", "predict", "evaluate"}:
+            importlib.import_module("recipes.combosciplex_mlp").validate_config(config)
+        module_name, function_name = actions[action]
+        function = getattr(importlib.import_module(module_name), function_name)
+        return function(config["output_dir"]) if action == "monitor" else function(config)
     if mlp:
         actions = {
             "prepare": ("devflow.data.mean_assets", "prepare_assets"),
             "validate": ("recipes.sciplex3_mlp", "validate_config"),
-            "train": ("devflow.runtime.train_sciplex3_mlp", "train"),
+            "train": ("devflow.runtime.train_mlp_mean", "train"),
             "predict": ("devflow.runtime.evaluate_sciplex3_mlp", "predict"),
             "evaluate": ("devflow.runtime.evaluate_sciplex3_mlp", "evaluate_checkpoint"),
             "monitor": ("devflow.runtime.monitor", "build_monitor"),
@@ -69,7 +87,7 @@ def run(task, action, config):
         importlib.import_module("recipes.sciplex3").validate_config(config)
     module_name, function_name = _ACTIONS[task][action]
     function = getattr(importlib.import_module(module_name), function_name)
-    if task == "sciplex3" and action == "monitor":
+    if action == "monitor":
         return function(config["output_dir"])
     return function(config)
 

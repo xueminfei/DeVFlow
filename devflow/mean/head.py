@@ -20,7 +20,10 @@ class TrainableKernelMeanHead(nn.Module):
         super().__init__()
         kernel = kernels if kernel is None else kernel
         alpha = alphas if alpha is None else alpha
-        arrays = {name: torch.as_tensor(value, dtype=torch.float64).detach().clone()
+        # A single stratum may arrive as a NumPy [None, ...] view with a zero
+        # leading stride. Give checkpoint/DDP broadcasts ordinary dense layouts.
+        arrays = {name: torch.as_tensor(value, dtype=torch.float64).detach().clone(
+                      memory_format=torch.contiguous_format)
                   for name, value in dict(kernel=kernel, targets=targets, bias=bias,
                                           control_mean=control_mean, alpha=alpha).items()}
         k, y = arrays["kernel"], arrays["targets"]
@@ -43,7 +46,7 @@ class TrainableKernelMeanHead(nn.Module):
             raise ValueError("The fixed intercept must be the equally weighted training delta mean")
         for name, value in arrays.items():
             self.register_buffer(name, value)
-        self.A = nn.Parameter(torch.zeros_like(y))
+        self.A = nn.Parameter(torch.zeros_like(y, memory_format=torch.contiguous_format))
         self.metadata = copy.deepcopy(metadata or {})
 
     def forward(self, query_kernel, stratum, *, output_dtype=torch.float32):

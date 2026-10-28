@@ -17,11 +17,24 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 
-from devflow.model_mlp import MLPMeanSystem
 from .artifacts import append_csv, atomic_json, sha256
-from .checkpoint_mlp import (capture_rng, restore_rng, source_identity, snapshot_source,
+from .checkpoint import (capture_rng, restore_rng, source_identity, snapshot_source,
     make_optimizers, validate_resume, restore_optimizers, save_checkpoint, checkpoint_path)
-from .sciplex3_mlp import make_runtime
+
+
+def task_components(config):
+    """Share the training loop while keeping each dataset's native protocol."""
+    if config["task"] == "sciplex3":
+        from devflow.model_mlp import MLPMeanSystem
+        from .sciplex3_mlp import make_runtime
+        from .evaluate_sciplex3_mlp import evaluate
+        return make_runtime, MLPMeanSystem, evaluate
+    if config["task"] == "combosciplex":
+        from devflow.model_mlp import MLPMeanSystem
+        from .combosciplex_mlp import make_runtime
+        from .evaluate_combosciplex_mlp import evaluate
+        return make_runtime, MLPMeanSystem, evaluate
+    raise ValueError("No mean/MMD training adapter for " + str(config["task"]))
 
 
 def condition_index(step, micro, accumulation, count, seed):
@@ -60,6 +73,7 @@ def refresh_monitor(output):
 
 
 def train(config):
+    make_runtime, model_class, evaluate = task_components(config)
     settings = config["training"]
     rank, world = int(os.environ.get("RANK", 0)), int(os.environ.get("WORLD_SIZE", 1))
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
@@ -95,10 +109,10 @@ def train(config):
     parent = torch.load(resume, map_location="cpu", weights_only=False) if resume else None
     if parent is not None:
         validate_resume(parent, runtime, config, world)
-        model = MLPMeanSystem.from_checkpoint(parent).to(device)
+        model = model_class.from_checkpoint(parent).to(device)
         start = int(parent["update"])
     else:
-        model = MLPMeanSystem(config["model"].get("config", {}), runtime.mean_assets,
+        model = model_class(config["model"].get("config", {}), runtime.mean_assets,
             decoder_checkpoint=config["model"]["decoder_checkpoint"],
             expected_gene_order_sha256=runtime.data.gene_order_sha256,
             loss_weights=_loss_weights(config)).to(device)
@@ -118,9 +132,13 @@ def train(config):
     candidate_rng = np.random.default_rng(seed)
     pair_generator = torch.Generator(device=device).manual_seed(seed + rank * 100003)
     decoder_rng = np.random.default_rng(seed + 770003 + rank * 100003)
-    torch.manual_seed(seed + rank * 100003)
-    if device.type == "cuda":
-        torch.cuda.manual_seed(seed + rank * 100003)
+    # Combo's historical dropout stream starts immediately after native model
+    # construction, identically seeded on each rank. Keep that initialization
+    # policy; its OT and decoder cell draws already use separate streams.
+    if config["task"] != "combosciplex":
+        torch.manual_seed(seed + rank * 100003)
+        if device.type == "cuda":
+            torch.cuda.manual_seed(seed + rank * 100003)
     if parent is not None:
         restore_optimizers(parent, optimizers, optimizer_names)
         restore_rng(parent["rng_states"][rank], candidate_rng, pair_generator, decoder_rng)
@@ -157,7 +175,11 @@ def train(config):
         return path
     save(start)
     wrapped = (DistributedDataParallel(model, device_ids=[local_rank] if device.type == "cuda" else None,
-                broadcast_buffers=False, find_unused_parameters=False) if world > 1 else model)
+                broadcast_buffers=False,
+                # Keep Combo's native fixed bucket policy. With False, DDP
+                # rebuilds buckets after warmup; a resumed process then reduces
+                # gradients differently from uninterrupted training.
+                find_unused_parameters=config["task"] == "combosciplex") if world > 1 else model)
     modules = {"flow": model.flow, "decoder": model.decoder, "head": model.mean_head}
     tracked = {key: [(n, p) for n, p in module.named_parameters() if p.requires_grad][-1]
                for key, module in modules.items()}
@@ -184,7 +206,12 @@ def train(config):
             before = {key: p.detach().clone() for key, (_, p) in tracked.items()} if first else {}
             averages, ot_errors, ot_convergence = {}, [], []
             for micro in range(accumulation):
-                index = condition_index(step, micro, accumulation, len(runtime.data.train_records), seed)
+                if hasattr(runtime, "set_training_context"):
+                    runtime.set_training_context(step, micro, accumulation, rank, world)
+                if hasattr(runtime, "training_condition"):
+                    index = runtime.training_condition(step, micro, accumulation, seed, rank, world)
+                else:
+                    index = condition_index(step, micro, accumulation, len(runtime.data.train_records), seed)
                 record = runtime.data.train_records[index]
                 batch, ot = runtime.training_batch(record, candidate_rng, pair_generator, decoder_rng,
                     pairs=int(settings.get("pairs_per_condition", 256)),
@@ -247,20 +274,21 @@ def train(config):
                 saved = save(step)
                 checkpoint_seconds += time.monotonic() - tick
             if mean_due or full_due:
-                from .evaluate_sciplex3_mlp import evaluate
                 state = capture_rng(candidate_rng, pair_generator, decoder_rng)
                 tick = time.monotonic()
                 if rank == 0:
                     atomic_json(output / "status.json", {"status": "evaluating", "optimizer_step": step})
                     refresh_monitor(output)
                 if mean_due:
-                    evaluate(model, runtime, config, step, saved, seeds=(4243,4244,4245,4246),
+                    diagnostic_seeds = tuple(config.get("evaluation", {}).get("mean_seeds", [4243,4244,4245,4246]))
+                    evaluate(model, runtime, config, step, saved, seeds=diagnostic_seeds,
                              mean_only=True, rank=rank, world=world, purpose="monitor")
                 if full_due:
                     seeds = tuple(config.get("evaluation", {}).get("monitor_seeds", [4243]))
                     evaluate(model, runtime, config, step, saved, seeds=seeds,
                              mean_only=False, rank=rank, world=world, purpose="monitor")
-                    if step == final and config.get("evaluation", {}).get("final_four_seeds", False):
+                    if (step == final and config.get("evaluation", {}).get("final_four_seeds", False)
+                            and not config.get("selection", {}).get("benchmark_selected", False)):
                         evaluate(model, runtime, config, step, saved, seeds=(4243,4244,4245,4246),
                                  mean_only=False, rank=rank, world=world, purpose="benchmark")
                 if world > 1:
@@ -270,14 +298,36 @@ def train(config):
                 torch.backends.cuda.matmul.allow_tf32 = bool(settings.get("allow_tf32", True))
             if rank == 0 and (first or step % int(settings.get("monitor_every", 50)) == 0 or step == final):
                 refresh_monitor(output)
+        selected_path = output / "SELECTED_CHECKPOINT.json"
+        selected = None
+        if config.get("selection", {}).get("benchmark_selected", False):
+            if world > 1:
+                dist.barrier()
+            if not selected_path.is_file():
+                raise RuntimeError("No complete online evaluation is available for checkpoint selection")
+            selected = json.loads(selected_path.read_text())
+            selected_checkpoint = selected["checkpoint"]
+            selected_step = int(selected["update"])
+            if sha256(selected_checkpoint) != selected["checkpoint_sha256"]:
+                raise ValueError("Selected checkpoint content changed after its online evaluation")
+            # The training model and its optimizer remain untouched. Every
+            # final metric comes from this single selected saved model.
+            final_model = model_class.from_checkpoint(selected_checkpoint).to(device).eval()
+            tick = time.monotonic()
+            evaluate(final_model, runtime, config, selected_step, selected_checkpoint,
+                     seeds=tuple(config["prediction"]["seeds"]), mean_only=False,
+                     rank=rank, world=world, purpose="benchmark")
+            evaluation_seconds += time.monotonic() - tick
+            del final_model
         if rank == 0:
             atomic_json(output / "TRAINING_COMPLETE.json", {"status": "complete", "optimizer_step": final,
                 "checkpoint": str(checkpoint_path(output, final)),
                 "training_seconds": training_seconds, "evaluation_seconds": evaluation_seconds,
                 "checkpoint_seconds": checkpoint_seconds,
                 "seconds_per_update": training_seconds / (final - start),
-                "selected_checkpoint": None,
-                "selection_note": "The last checkpoint is not automatically the best; inspect the candidate index."})
+                "selected_checkpoint": selected,
+                "selection_note": ("External-selected exploratory; all final metrics use the selected checkpoint"
+                    if selected else "The last checkpoint is not automatically the best; inspect the candidate index.")})
             atomic_json(output / "status.json", {"status": "complete", "optimizer_step": final,
                 "condition_passes": final * accumulation / len(runtime.data.train_records)})
             refresh_monitor(output)

@@ -138,7 +138,8 @@ def load_historical_components(flow_checkpoint, head_checkpoint, runtime):
 
 def verify_reference(model, runtime, config, reference_root, *, verify_cells=True):
     """Check all condition means and optionally one real 128-cell prediction."""
-    from .evaluate_sciplex3_mlp import formal_mode, _references, _sample_bundle, _score
+    from .evaluation import formal_mode
+    from .evaluate_sciplex3_mlp import _references, _sample_bundle, _score
     root = Path(reference_root)
     with np.load(root / "condition_mean_predictions.npz", allow_pickle=False) as original:
         if original["condition_names"].tolist() != [r["condition"] for r in runtime.data.test_records]:

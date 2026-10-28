@@ -29,13 +29,15 @@ DEFAULT_CONFIG = {
     "path_sigma": 0.01, "condition_output_dropout": 0.0,
     "expression_hidden_dims": [512, 1024], "expression_dropout": 0.1,
     "expression_output_activation": "relu",
+    "initialization_policy": "direct",
+    "decoder_checkpoint_family": "SciPlex3_true_SE_MSE_MMD_decoder",
 }
 DEFAULT_LOSS_WEIGHTS = {"flow_residual": 1.0, "flow_mean": 32.0,
                         "decoder_mmd": 1.0, "head": 1.0}
 
 
 class MLPMeanSystem(nn.Module):
-    model_family = "sciplex3_mlp_mean_mmd_v1"
+    model_family = "mlp_mean_mmd_v1"
     checkpoint_schema = "devflow_mlp_mean_training_v1"
 
     def __init__(self, model_config=None, mean_assets=None, decoder_checkpoint=None,
@@ -50,8 +52,7 @@ class MLPMeanSystem(nn.Module):
             raise ValueError(f"Unknown basic MLP model settings: {sorted(unknown)}")
         self.model_config = {**copy.deepcopy(DEFAULT_CONFIG), **settings}
         cfg = self.model_config
-        if float(cfg["condition_output_dropout"]) != 0:
-            raise ValueError("The historical basic MLP uses direct conditions without dropout")
+        self._validate_model_config(cfg)
         self.loss_weights = {**DEFAULT_LOSS_WEIGHTS, **dict(loss_weights or {})}
         if set(self.loss_weights) != set(DEFAULT_LOSS_WEIGHTS):
             raise ValueError("Loss weights must name flow_residual, flow_mean, decoder_mmd and head")
@@ -60,24 +61,12 @@ class MLPMeanSystem(nn.Module):
             raise ValueError("Loss weights must be finite and nonnegative")
         if mean_assets is None:
             raise ValueError("Training-only fixed mean assets are required")
-        # Instantiate the original condition submodules before the velocity
-        # network, retaining its parameter topology and initialisation RNG.
-        self.flow = ControlOTFlowMatchingSystem(
-            **{key: cfg[key] for key in (
-                "state_dim", "path_sigma", "source_dim", "source_hidden_dim",
-                "condition_dim", "cell_line_dim", "condition_branch_dims",
-                "condition_after_pool_dims", "state_dims", "time_dims",
-                "decoder_dims", "time_frequencies", "condition_output_dropout")},
-            objective="ot_velocity", source_condition=False, direct_condition=True)
+        target = mean_assets["targets"]
+        gene_dim = int(target.shape[-1])
+        self.flow, self.decoder = self._make_networks(cfg, gene_dim)
         # Direct conditioning bypasses these parameterised branches. They stay
         # in state_dict for topology/RNG compatibility but must not enter DDP.
         self.flow.perturbation_encoder.requires_grad_(False)
-        target = mean_assets["targets"]
-        gene_dim = int(target.shape[-1])
-        self.decoder = LatentToGeneDecoder(
-            int(cfg["state_dim"]), gene_dim, list(cfg["expression_hidden_dims"]),
-            dropout=float(cfg["expression_dropout"]),
-            output_activation=cfg["expression_output_activation"])
         self.gene_order_sha256 = expected_gene_order_sha256
         if decoder_checkpoint is not None:
             self._load_decoder(decoder_checkpoint, expected_gene_order_sha256)
@@ -91,18 +80,61 @@ class MLPMeanSystem(nn.Module):
         self._extra_mean_assets = copy.deepcopy({key: value for key, value in mean_assets.items()
             if key not in {"kernel", "kernels", "targets", "bias", "control_mean", "alpha", "alphas", "metadata"}})
 
+    def _validate_model_config(self, cfg):
+        if not 0 <= float(cfg["condition_output_dropout"]) < 1:
+            raise ValueError("Condition dropout must lie in [0,1)")
+        if cfg["initialization_policy"] not in {"direct", "duplicate_drug_slots"}:
+            raise ValueError("Unknown MLP initialization policy")
+        if cfg["initialization_policy"] == "duplicate_drug_slots":
+            if int(cfg["condition_dim"]) != 2052 or int(cfg["cell_line_dim"]) != 3:
+                raise ValueError("Two-slot initialization requires condition_dim=2052 and three cell-line slots")
+
+    def _make_networks(self, cfg, gene_dim):
+        """Construct one backbone using an explicit initialization policy."""
+        duplicate = cfg["initialization_policy"] == "duplicate_drug_slots"
+        if duplicate:
+            from .runtime.combosciplex import widen_direct_condition
+        # Instantiate the original condition submodules before the velocity
+        # network, retaining its parameter topology and initialisation RNG.
+        flow_settings = {key: cfg[key] for key in (
+                "state_dim", "path_sigma", "source_dim", "source_hidden_dim",
+                "condition_dim", "cell_line_dim", "condition_branch_dims",
+                "condition_after_pool_dims", "state_dims", "time_dims",
+                "decoder_dims", "time_frequencies", "condition_output_dropout")}
+        if duplicate:
+            flow_settings["condition_dim"] = 1028
+        flow = ControlOTFlowMatchingSystem(**flow_settings,
+            objective="ot_velocity", source_condition=False, direct_condition=True)
+        decoder = LatentToGeneDecoder(
+            int(cfg["state_dim"]), gene_dim, list(cfg["expression_hidden_dims"]),
+            dropout=float(cfg["expression_dropout"]),
+            output_activation=cfg["expression_output_activation"])
+        if duplicate:
+            # The decoder is constructed before widening, exactly as in the
+            # original two-drug initialization; widening does not advance RNG.
+            from types import SimpleNamespace
+            adapter = SimpleNamespace(flow=flow, state_dim=int(cfg["state_dim"]))
+            widen_direct_condition(adapter)
+            self.direct_concat_metadata = adapter.direct_concat_metadata
+        return flow, decoder
+
     def _load_decoder(self, checkpoint_path, expected_gene_order_sha256):
         payload = torch.load(str(checkpoint_path), map_location="cpu", weights_only=False)
-        if payload.get("model_family") != "SciPlex3_true_SE_MSE_MMD_decoder":
-            raise ValueError("Expected the provenance-checked SciPlex3 true-SE decoder asset")
+        if payload.get("model_family") != self.model_config["decoder_checkpoint_family"]:
+            raise ValueError("Pretrained decoder family differs from its configured format")
         if not expected_gene_order_sha256:
             raise ValueError("Fresh decoder initialisation requires an explicit gene-order SHA256")
         if payload.get("gene_order_sha256") != expected_gene_order_sha256:
             raise ValueError("Pretrained decoder gene order differs from the active dataset")
         state = payload.get("decoder_state_dict")
         if state is None:
-            state = {key[len("decoder."):]: value for key, value in payload["model"].items()
+            source = payload.get("model", payload.get("model_state_dict", payload.get("state_dict")))
+            if source is None:
+                raise ValueError("Pretrained decoder has no model state")
+            state = {key[len("decoder."):]: value for key, value in source.items()
                      if key.startswith("decoder.")}
+            if not state:
+                state = source
         self.decoder.load_state_dict(state, strict=True)
 
     def _condition(self, batch, count):
@@ -112,13 +144,17 @@ class MLPMeanSystem(nn.Module):
         if condition.shape[1] != int(self.model_config["condition_dim"]):
             raise ValueError("Condition feature dimension differs from the model")
         if condition.shape[0] == 1:
-            return condition.expand(count, -1)
+            condition = condition.expand(count, -1)
         if condition.shape[0] != count:
             # One condition can have different Flow and decoder batch sizes.
             if not torch.equal(condition, condition[:1].expand_as(condition)):
                 raise ValueError("A basic MLP loss batch must contain one condition")
-            return condition[:1].expand(count, -1)
-        return condition
+            condition = condition[:1].expand(count, -1)
+        # One condition mask per loss/rollout; RK4 reuses it at every substep.
+        # Materialize only when dropout is active, matching the native concat.
+        if self.flow.perturbation_encoder.dropout.p:
+            condition = condition.contiguous()
+        return self.flow.perturbation_encoder.dropout(condition)
 
     def predict_mean(self, batch):
         mean = self.mean_head.predict_mean(batch["head_kernel"], batch["head_stratum"])
@@ -215,10 +251,15 @@ class MLPMeanSystem(nn.Module):
         if payload.get("schema") != cls.checkpoint_schema:
             raise ValueError("Unsupported basic MLP + mean checkpoint schema")
         spec = payload.get("model_spec", payload)
-        if spec.get("model_family", cls.model_family) != cls.model_family:
+        family = spec.get("model_family", cls.model_family)
+        if family not in {cls.model_family, "sciplex3_mlp_mean_mmd_v1", "combosciplex_mlp_mean_mmd_v1"}:
             raise ValueError("Checkpoint model family differs")
+        settings = dict(spec["model_config"])
+        if family == "combosciplex_mlp_mean_mmd_v1":
+            settings.setdefault("initialization_policy", "duplicate_drug_slots")
+            settings.setdefault("decoder_checkpoint_family", "MAP_true_SE_decoder_reconstruction")
         with torch.random.fork_rng(devices=[]):
-            model = cls(spec["model_config"], spec["mean_assets"],
+            model = cls(settings, spec["mean_assets"],
                         expected_gene_order_sha256=spec.get("gene_order_sha256"),
                         loss_weights=spec.get("loss_weights"))
         model.load_state_dict(payload["model"], strict=True)

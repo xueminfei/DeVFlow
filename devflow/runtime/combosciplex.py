@@ -1,5 +1,6 @@
 """Native, checkpoint-compatible ComboSciPlex direct-concatenation model."""
 from __future__ import annotations
+import json
 import torch
 import torch.nn.functional as F
 from torch import nn
