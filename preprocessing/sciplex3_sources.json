@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "purpose": "Source provenance for the portable SciPlex3 preprocessing entry points; copying source does not assert that raw preprocessing has been rerun.",
+  "map_source": {
+    "repository": "MAP-main",
+    "checkout_commit": "3853e42b154f9053850da8e4de596475ed258745",
+    "initial_import_commit": "d2f2d9e164553f859e40ff7b3ceac9f77884d0a2",
+    "local_sciplex3_adaptation_commit": "69f8d02d0bbc60774041b31632d7f01c99182dd3",
+    "attribution": "A-G/sciplex_utils are the local SciPlex3 adaptation of MAP. They are not represented as unmodified MAP-author SciPlex3 code."
+  },
+  "current_prefix": {
+    "producer_sha256": "3dd5e1c5eb65a5983c2c06309f1b26ff8264a994295b78465430d281cd68a50a",
+    "tail_module_sha256": "c499bff28889fb2d71897244548b72c9d9b9485856e820351d88f9fa5773e051",
+    "source_checkpoint_sha256": "f88b90192d5239f2d8aeafb4bffbccc3f54101c613c4b7b64582fdc611fdb307",
+    "cache_seed": 20261021,
+    "batch_size": 4,
+    "world_size": 8,
+    "native_attention_dropout": 0.1,
+    "extraction_precision": "native infer inner FP16 autocast",
+    "partition": "sorted control rows, rank-strided within each line"
+  },
+  "original_processed_assets": {
+    "processed_manifest_sha256": "f0e63f1b2d80d66e64ff165d55ee01bdad5ddd735e453913722ec8c9fa5e5322",
+    "hvg_info_sha256": "ecb3520539067d76adc2c096a6d29918fea9573f1d72883dfb702c9a546e30f9",
+    "tokenization_sha256": "7f5a9bd3ecc9f93f73a7f670bf50229a897f01dffe5435898fc6472453c981f6",
+    "gene_order_sha256": "e63a7bf175e774407a2eb5df02931f5f50be8c308e9670c524a71c3cc1f4e5ec"
+  },
+  "limitations": [
+    "Original treated SE embedding generator version, checkpoint, batch partition and RNG provenance are not fully established by the migrated dataset manifest.",
+    "The optional hvg-compat wrapper changes LOESS behavior and is not silently substituted for original stage E.",
+    "train_union.py is a new DeVFlow builder reconstructed from the existing union manifest and index files; it is not a recovered historical producer."
+  ],
+  "files": [
+    {
+      "source": "MAP-main/preprocess/A_fetch_cell_line.py",
+      "destination": "preprocessing/_vendor/sciplex3/A_fetch_cell_line.py",
+      "source_sha256": "ff703133c1d62b9f9b9cc2d130d5573654667df22fe1315d54a99a5880856346",
+      "modifications": [],
+      "destination_sha256": "ff703133c1d62b9f9b9cc2d130d5573654667df22fe1315d54a99a5880856346"
+    },
+    {
+      "source": "MAP-main/preprocess/B_watch_cell_line.py",
+      "destination": "preprocessing/_vendor/sciplex3/B_watch_cell_line.py",
+      "source_sha256": "0ea7cc551398f30176a0caae114093be129467fd847d28ce4a4d076832e6b3bf",
+      "modifications": [],
+      "destination_sha256": "0ea7cc551398f30176a0caae114093be129467fd847d28ce4a4d076832e6b3bf"
+    },
+    {
+      "source": "MAP-main/preprocess/C_uni_multi_process.py",
+      "destination": "preprocessing/_vendor/sciplex3/C_uni_multi_process.py",
+      "source_sha256": "ecc82d1ffc002914b43074add2e217e3958d2945a0ea10e1a447afb5c126c323",
+      "modifications": [],
+      "destination_sha256": "ecc82d1ffc002914b43074add2e217e3958d2945a0ea10e1a447afb5c126c323"
+    },
+    {
+      "source": "MAP-main/preprocess/D_extract_se_emb.py",
+      "destination": "preprocessing/_vendor/sciplex3/D_extract_se_emb.py",
+      "source_sha256": "b7375519b29160f7dc7dc194930a65441012238b4b3a5c79d8408de5c0b96a19",
+      "modifications": [],
+      "destination_sha256": "b7375519b29160f7dc7dc194930a65441012238b4b3a5c79d8408de5c0b96a19"
+    },
+    {
+      "source": "MAP-main/preprocess/E_hvg_multi_celllines.py",
+      "destination": "preprocessing/_vendor/sciplex3/E_hvg_multi_celllines.py",
+      "source_sha256": "099bc284a565d8743ea5261493816cf7640af525e51fa1ec217bd94e60928854",
+      "modifications": [],
+      "destination_sha256": "099bc284a565d8743ea5261493816cf7640af525e51fa1ec217bd94e60928854"
+    },
+    {
+      "source": "MAP-main/preprocess/F_gemini_opt_preprocess.py",
+      "destination": "preprocessing/_vendor/sciplex3/F_gemini_opt_preprocess.py",
+      "source_sha256": "62757f96957f6872c1bf76ac5b17384b5df912abfef0a272ebf0f2008eb54338",
+      "modifications": [],
+      "destination_sha256": "62757f96957f6872c1bf76ac5b17384b5df912abfef0a272ebf0f2008eb54338"
+    },
+    {
+      "source": "MAP-main/preprocess/G_extract_se_input_for_lora.py",
+      "destination": "preprocessing/_vendor/sciplex3/G_extract_se_input_for_lora.py",
+      "source_sha256": "3e019fbf817e1bf541dcf6982d5d579873fffe26da31b13641f37e63b7bf56b5",
+      "modifications": [],
+      "destination_sha256": "3e019fbf817e1bf541dcf6982d5d579873fffe26da31b13641f37e63b7bf56b5"
+    },
+    {
+      "source": "MAP-main/preprocess/sciplex_utils.py",
+      "destination": "preprocessing/_vendor/sciplex3/sciplex_utils.py",
+      "source_sha256": "0267549a41069cc532505cce83a1e2c3b255103b91796b17d5370e1c1aef2d93",
+      "modifications": [],
+      "destination_sha256": "0267549a41069cc532505cce83a1e2c3b255103b91796b17d5370e1c1aef2d93"
+    },
+    {
+      "source": "MAP-Flowmatching/experiments/dataset_interfaces/sciplex3/se_control_lora_20261021/se_control_lora.py",
+      "destination": "preprocessing/_vendor/control_prefix/se_control_lora.py",
+      "source_sha256": "c499bff28889fb2d71897244548b72c9d9b9485856e820351d88f9fa5773e051",
+      "modifications": [],
+      "destination_sha256": "c499bff28889fb2d71897244548b72c9d9b9485856e820351d88f9fa5773e051"
+    },
+    {
+      "source": "MAP-Flowmatching/experiments/dataset_interfaces/sciplex3/se_control_lora_20261021/prepare_prefix.py",
+      "destination": "preprocessing/_vendor/control_prefix/prepare_prefix.py",
+      "source_sha256": "3dd5e1c5eb65a5983c2c06309f1b26ff8264a994295b78465430d281cd68a50a",
+      "modifications": [
+        "Replace machine-specific input paths with required CLI arguments.",
+        "Use vendored MAP runtime modules, without importing historical repositories.",
+        "Require the historical world size of eight unless explicitly overridden.",
+        "Defer model and data-library imports until after CLI argument parsing.",
+        "Functional directory naming only; executable path literals updated without changing data/model calculations."
+      ],
+      "destination_sha256": "2e19fc2cde868f319b952ad532cdc42043fbf08b1945f195f127f7db0203e8ea"
+    },
+    {
+      "source": "MAP-Flowmatching/preprocess_compat/run_original_map_e_seurat_compat.py",
+      "destination": "preprocessing/_vendor/hvg_compat/hvg_compat.py",
+      "source_sha256": "cd61b310156a8a6429b07ec74325cc54bb67491de6e3bd1793b2883a61b418ae",
+      "modifications": [
+        "Replace obsolete MAP-main-clean path with vendored stage E.",
+        "Expose only as explicit hvg-compat; do not select it by default.",
+        "Functional directory naming only; executable path literals updated without changing data/model calculations."
+      ],
+      "destination_sha256": "62c12b9ae571e1472fc16084fe294f6767950e89e5421d61913e5934e3a806fb"
+    }
+  ]
+}

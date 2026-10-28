@@ -1,0 +1,61 @@
+{
+  "host": "modelarts-8gpu-0",
+  "dataset": "Norman et al. 2019 Perturb-seq; scDFM paper input",
+  "source": {
+    "provider": "Figshare",
+    "file_id": 44477939,
+    "url": "https://figshare.com/ndownloader/files/44477939",
+    "paper_source": true,
+    "processing": "scFoundation/GEARS reprocessed Norman input referenced by scDFM"
+  },
+  "paths": {
+    "raw_zip": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_scdfm_figshare_20261016/norman_scdfm_source.zip",
+    "extracted_h5ad": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_scdfm_figshare_20261016/norman.h5ad"
+  },
+  "raw_zip": {
+    "size_bytes": 614079631,
+    "md5": "f9c76065fafa43303dae3f80fe4587a8",
+    "sha256": "11c65bdd626129185b6e940aca83c26af584c709d5089bbbb6faa92cc7d6ae9b",
+    "member": "scFoundation/GEARS/data/gse133344_k562gi_oe_pert227_84986_19264_withtotalcount.h5ad",
+    "member_compressed_size_bytes": 614079315,
+    "member_uncompressed_size_bytes": 2184186178,
+    "member_crc32": "0xf37da4ac",
+    "zip_test": "unzip -t passed"
+  },
+  "h5ad": {
+    "size_bytes": 2184186178,
+    "sha256": "20a67e0e9e1059b631f3d3fe56a78b5856c1609339ded37cf20f2d49af1b87d7",
+    "shape": [
+      84986,
+      19264
+    ],
+    "n_conditions": 227,
+    "control_cells": 7275,
+    "cell_types": [
+      "K562"
+    ],
+    "obs_columns": [
+      "condition",
+      "pert_type",
+      "cell_type",
+      "guide_identity",
+      "read_count",
+      "UMI_count",
+      "coverage",
+      "gemgroup",
+      "good_coverage",
+      "number_of_cells",
+      "n_genes",
+      "cell_type_condition",
+      "lane",
+      "dose_val",
+      "control",
+      "condition_name",
+      "total_count"
+    ],
+    "var_columns": [
+      "gene_name"
+    ]
+  },
+  "downloaded_at": "2026-10-16 Asia/Shanghai"
+}

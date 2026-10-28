@@ -1,0 +1,52 @@
+{
+  "format_version": 1,
+  "complete": true,
+  "created_unix": 1792257607.635412,
+  "host_alias": "modelarts-8gpu-1",
+  "hostname": "os-node-created-hqgrt",
+  "code_root": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree",
+  "git_commit": "3786dd6a8ce03aca996ab5d7b5dc10bc85689215",
+  "args": {
+    "h5ad": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_scdfm_figshare_20261016/norman.h5ad",
+    "split_manifest": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_0/condition_manifest.json",
+    "control_split": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_0/control_split.json",
+    "esm_checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-main/pretrained/Homo_sapiens.GRCh38.gene_symbol_to_embedding_ESM2.pt",
+    "se_checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+    "projector_checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-main/MAP/checkpoints/sciplex3_map_2026-08-12/epoch_11.pt",
+    "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_gene_condition_assets_additive_20261018",
+    "device": "cuda:0"
+  },
+  "h5ad_sha256": "20a67e0e9e1059b631f3d3fe56a78b5856c1609339ded37cf20f2d49af1b87d7",
+  "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+  "control_split_sha256": "b83c0cdaaca09084362b838e3de29004414a37ba9feadbcdc4184964d155b492",
+  "train_control_rows_sha256": "804ba4f9625f7237385c267ad00cb63b583574aec22aa8f88293e9b6b7250631",
+  "n_train_controls": 5456,
+  "background_gene_order_sha256": "d5739a337cb4df5620fde2168655f51a0c07971c89fc337568fa2f639bacde45",
+  "projector_kind": "map_predictor",
+  "projector_checkpoint_sha256": "f88b90192d5239f2d8aeafb4bffbccc3f54101c613c4b7b64582fdc611fdb307",
+  "esm_checkpoint_sha256": "a210e1cc7901513999b2bca3836ba9e2f203cd008be4e9a9d6412a2267de9748",
+  "se_checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+  "shapes": {
+    "target_esm": [
+      101,
+      5120
+    ],
+    "background_projected": [
+      1,
+      2047,
+      1024
+    ],
+    "se_gene_tokens": [
+      1,
+      2047,
+      2048
+    ]
+  },
+  "normalization": "mean of stored lognormalized X over train controls; expm1 interface conversion then original tokenizer log1p, weights sum-to-100 over mapped genes",
+  "background_kind": "train_control_pool_mean",
+  "se_tokens": "gene_output[:,1:2048], excluding CLS and dataset token",
+  "background_scope": "shared only when train_control_rows and source data match; independent of test conditions",
+  "asset_sha256": "3071d8d8a1e1545695bcb70f809346d060805689db39746b39b8289f1f8a56b3",
+  "source_manifest": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_gene_condition_assets_additive_20261018/gene_condition_assets.json",
+  "source_manifest_sha256": "53c0c2688d8933e3b6707a8a69be0b423e5885a6af3ba1ff0d51a868eb29996c"
+}

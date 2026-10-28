@@ -1,0 +1,238 @@
+{
+  "task": "combosciplex",
+  "source_commit": "per-file historical sources; see hashes",
+  "migration_scope": "Source and small provenance only; existing raw data, frozen caches and model checkpoints were not regenerated or modified.",
+  "files": [
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/experiments/dataset_interfaces/combosciplex/prepare.py",
+      "destination": "preprocessing/_vendor/combosciplex/prepare.py",
+      "source_sha256": "41a031bcc4a99b5281961cd5eea34b35010b5b2f2606bd70f1afa759a0317ce9",
+      "portable_sha256": "41a031bcc4a99b5281961cd5eea34b35010b5b2f2606bd70f1afa759a0317ce9",
+      "adaptations": [],
+      "source_commit": "d36c733",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/experiments/dataset_interfaces/combosciplex/extract_se.py",
+      "destination": "preprocessing/_vendor/combosciplex/extract_se.py",
+      "source_sha256": "89b7f1d60665b72012b107112ca408e0f68a4f27ae36e5478911f0131713f6ab",
+      "portable_sha256": "508b63c564eda81a983c3cef24813e6a6f357aa55dab57e36469488c56e11458",
+      "adaptations": [
+        {
+          "from": "ROOT = Path(__file__).resolve().parents[3]",
+          "to": "ROOT = Path(__file__).resolve().parents[3]\nMAP_ROOT = Path(__file__).resolve().parents[1] / 'state_encoder'"
+        },
+        {
+          "from": "ROOT / 'MAP'",
+          "to": "MAP_ROOT"
+        },
+        {
+          "from": "ROOT / 'MAP/model/se.py'",
+          "to": "MAP_ROOT / 'model/se.py'"
+        },
+        {
+          "from": "ROOT / 'MAP/model/flash_transformer.py'",
+          "to": "MAP_ROOT / 'model/flash_transformer.py'"
+        },
+        {
+          "from": "'map_runtime'",
+          "to": "'state_encoder'"
+        }
+      ],
+      "source_commit": "78c3541",
+      "source_reconstruction": {
+        "method": "unified_diff",
+        "direction": "destination_to_source",
+        "patch": "--- a/preprocessing/_vendor/combosciplex/extract_se.py\n+++ b/preprocessing/_vendor/combosciplex/extract_se.py\n@@ -20,7 +20,6 @@\n import numpy as np\n \n ROOT = Path(__file__).resolve().parents[3]\n-MAP_ROOT = Path(__file__).resolve().parents[1] / 'state_encoder'\n OFFICIAL_WEIGHT_SHA = '9d0cc6fc5aa89ed27c6c2ae336aa304ada4357518e40ad95351388e671d452e1'\n LOSSLESS_CHECKPOINT_SHA = 'f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20'\n OFFICIAL_ESM_SHA = 'a210e1cc7901513999b2bca3836ba9e2f203cd008be4e9a9d6412a2267de9748'\n@@ -164,7 +163,7 @@\n def load_model(checkpoint, config, device):\n     import torch\n     from omegaconf import OmegaConf\n-    sys.path.insert(0, str(MAP_ROOT))\n+    sys.path.insert(0, str(ROOT / 'MAP'))\n     from model.se import StateEmbeddingModel\n     loaded = torch.load(checkpoint, map_location='cpu', weights_only=False)\n     kwargs = dict(loaded['hyper_parameters'])\n@@ -234,8 +233,8 @@\n                     token_ids_sha256=token_meta['token_ids_sha256'], token_counts_sha256=token_meta['token_counts_sha256'],\n                     first_row=first, last_row=last, n_shards=args.num_shards, shard_index=args.shard_index,\n                     shape=[last - first, 2048], dtype='float32', amp_dtype=args.amp_dtype,\n-                    dropout=0.0, model_code_sha256=sha_file(MAP_ROOT / 'model/se.py'),\n-                    attention_code_sha256=sha_file(MAP_ROOT / 'model/flash_transformer.py'))\n+                    dropout=0.0, model_code_sha256=sha_file(ROOT / 'MAP/model/se.py'),\n+                    attention_code_sha256=sha_file(ROOT / 'MAP/model/flash_transformer.py'))\n     if progress_path.exists():\n         old = read_json(progress_path)\n         if any(old.get(k) != v for k, v in protocol.items()):\n"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/MAP/flowmatching/drug.py",
+      "destination": "preprocessing/_vendor/combosciplex/dependencies/flowmatching/drug.py",
+      "source_sha256": "25e460b7ab0ce0797ddc5220fb03f3bb2354e5f14341e2d179b0b870a9066fd4",
+      "portable_sha256": "25e460b7ab0ce0797ddc5220fb03f3bb2354e5f14341e2d179b0b870a9066fd4",
+      "adaptations": [],
+      "source_commit": "8607fd9",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/MAP/model/smiles_kg_encoder_v3.py",
+      "destination": "preprocessing/_vendor/combosciplex/dependencies/model/smiles_kg_encoder_v3.py",
+      "source_sha256": "32d1c369bd820a6c6f0013d63621a8aafa97c2dc941042188f7046c381779207",
+      "portable_sha256": "32d1c369bd820a6c6f0013d63621a8aafa97c2dc941042188f7046c381779207",
+      "adaptations": [],
+      "source_commit": "8607fd9",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/MAP/model/mega_molbart/STMencoder_ddp.py",
+      "destination": "preprocessing/_vendor/combosciplex/dependencies/model/mega_molbart/STMencoder_ddp.py",
+      "source_sha256": "0bf36cb2f78af10c67979c81050ee18b9f46a432906daaaf1c9fd3faa976a453",
+      "portable_sha256": "0bf36cb2f78af10c67979c81050ee18b9f46a432906daaaf1c9fd3faa976a453",
+      "adaptations": [],
+      "source_commit": "8607fd9",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/MAP/model/mega_molbart/tokenizer.py",
+      "destination": "preprocessing/_vendor/combosciplex/dependencies/model/mega_molbart/tokenizer.py",
+      "source_sha256": "ee0d7a7ebe0138d20b907af604ebedf57c8601afba0208c0286cd2c802a0fa56",
+      "portable_sha256": "ee0d7a7ebe0138d20b907af604ebedf57c8601afba0208c0286cd2c802a0fa56",
+      "adaptations": [],
+      "source_commit": "8607fd9",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/MAP/model/mega_molbart/util.py",
+      "destination": "preprocessing/_vendor/combosciplex/dependencies/model/mega_molbart/util.py",
+      "source_sha256": "cfcc3575a605e099cf8eea89426c41d58f3b20226e41b075831c236ebdc57b94",
+      "portable_sha256": "cfcc3575a605e099cf8eea89426c41d58f3b20226e41b075831c236ebdc57b94",
+      "adaptations": [],
+      "source_commit": "8607fd9",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/MAP/model/mega_molbart/decoder.py",
+      "destination": "preprocessing/_vendor/combosciplex/dependencies/model/mega_molbart/decoder.py",
+      "source_sha256": "8965aeccc8be701ed896585b6fdf4b1f34c576a1f1683b6347af97b438190d21",
+      "portable_sha256": "8965aeccc8be701ed896585b6fdf4b1f34c576a1f1683b6347af97b438190d21",
+      "adaptations": [],
+      "source_commit": "8607fd9",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/MAP/model/mega_molbart/megatron_bart.py",
+      "destination": "preprocessing/_vendor/combosciplex/dependencies/model/mega_molbart/megatron_bart.py",
+      "source_sha256": "603b3132fdd72ee26f85a2086ce5fa5f06453bbcdbd90b3f529337aadce78950",
+      "portable_sha256": "603b3132fdd72ee26f85a2086ce5fa5f06453bbcdbd90b3f529337aadce78950",
+      "adaptations": [],
+      "source_commit": "8607fd9",
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    }
+  ],
+  "shared_se_root": "preprocessing/_vendor/state_encoder",
+  "shared_se_files": [
+    "model/se.py",
+    "model/flash_transformer.py",
+    "data/utils.py",
+    "configs/se600m.yaml"
+  ],
+  "license": "preprocessing/_vendor/combosciplex/LICENSE",
+  "portable_drug_entrypoint": {
+    "path": "preprocessing/_vendor/combosciplex/prepare_drugs.py",
+    "sha256": "0ad26489066323b59adfad738e11ca5fe3355379c3041adf46cd9f171df6f975",
+    "algorithm_source": "MAP/train_flowmatching.py:146 build_drug_bank; flowmatching/drug.py:encode_mapkg_smiles",
+    "adaptation": "Standalone encoder/cache writer; removes training and DDP imports and requires an unused output file."
+  },
+  "provenance_sidecars": [
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/drug_smiles_input.json",
+      "sha256": "7ef298360053c9d415ba720994600c57edf922f7d6764792331cf48b48fcc324",
+      "bytes": 1532
+    },
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/hvg_fit_statistics.json",
+      "sha256": "69210f41b301cb7c6818bfb66ea165b6076c181dd000d3dd6d250eb84ada67a3",
+      "bytes": 21588
+    },
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/manifest.json",
+      "sha256": "0bb7a0ed46f8c764a8b346d0ae6604c28f4520ef867cf45d7875b8bf00d8aa5f",
+      "bytes": 3462
+    },
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/original_decoder_hvg_info.json",
+      "sha256": "ecb3520539067d76adc2c096a6d29918fea9573f1d72883dfb702c9a546e30f9",
+      "bytes": 103319
+    },
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/prepare_provenance.py",
+      "sha256": "89828b4cd93b3ec303a2338b9d25dd931dfd0f07fc96df5dc30093456ec97727",
+      "bytes": 14189
+    },
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/se_cache_audit.json",
+      "sha256": "6ccd5adecb065a365ec3bd0c74f3dc66e3754c620692097070a450889a2514a9",
+      "bytes": 11369
+    },
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/split_audit.json",
+      "sha256": "cb048304b853161355c89b72c3a4ac2269aeba95e89109395401f2e0dfe38976",
+      "bytes": 9972
+    },
+    {
+      "path": "preprocessing/_vendor/combosciplex/provenance/v1_test_control_cell_ids.json",
+      "sha256": "359d052cd7e96411b766c564feb1b936480bbeeea9a65bc910d05443aec94941",
+      "bytes": 4334
+    }
+  ],
+  "execution_policy": "Use wrappers in independent subprocesses. Existing complete outputs are immutable. No raw preprocessing, model loading or training was run during migration.",
+  "actual_assets": {
+    "bundle": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/ComboSciPlex/combinations_v3_train18_test5",
+    "se_embeddings_sha256": "7d1e05fbada343d23e6d7745fa52ae24b0a678baa55b5f2b9d49eb6bbb4fa73d",
+    "se_amp_dtype": "fp16",
+    "se_batch_size": 32,
+    "se_num_shards": 8,
+    "se_cache_audit_origin": "modelarts-8gpu-0:/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/ComboSciPlex/combinations_v3_train18_test5/se_cache_audit.json",
+    "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+    "esm_dictionary_sha256": "a210e1cc7901513999b2bca3836ba9e2f203cd008be4e9a9d6412a2267de9748",
+    "drug_bank_sha256": "fd8b7d6ad76a375e72d3a9ed4719f9286c6f8f3ec331075f8784d519fa468cab",
+    "map_predictor_checkpoint_sha256": "f88b90192d5239f2d8aeafb4bffbccc3f54101c613c4b7b64582fdc611fdb307"
+  },
+  "order": [
+    "prepare (train-only 2000 HVGs; raw HVG counts saved)",
+    "prepare-tokens (raw all-gene counts and original ESM dictionary)",
+    "encode (original lossless epoch4 SE, fp16; historical batch-size 32, eight shards)",
+    "merge (finite/order/protocol/norm checks)",
+    "drug-embeddings (frozen original MAP-KG; canonical SMILES order)"
+  ],
+  "shared_se_verified_sha256": {
+    "model/se.py": "805fc10a6c7fc3ae681b2c4960135394fd032e5e620f8a206ebac4e5e8e3307c",
+    "model/flash_transformer.py": "0246e3a28de11f6578f83ebdb5612cd30c618061a1ae6497533a2ab41fcb9330",
+    "data/utils.py": "af0d7da879a865ecd5dd1bb438c9f4eb177ee476741e80894816d09a638f5f7e"
+  },
+  "wrapper": {
+    "path": "preprocessing/combosciplex.py",
+    "sha256": "53539dbe21d5e3b72b79f12619932818a02e39e110a83213a9b359f7956cc12a",
+    "adaptations": [
+      "Child process inherits caller cwd so relative CLI paths match the output protection checks.",
+      "Output flag checks follow argparse last-value semantics for repeated --flag VALUE and --flag=VALUE arguments.",
+      {
+        "from": "task / \"MAP\"",
+        "to": "task / \"dependencies\""
+      },
+      {
+        "from": "map_runtime",
+        "to": "state_encoder"
+      }
+    ]
+  },
+  "prepare_source_equivalence": {
+    "historical_bundle_script": "preprocessing/_vendor/combosciplex/provenance/prepare_provenance.py",
+    "historical_sha256": "89828b4cd93b3ec303a2338b9d25dd931dfd0f07fc96df5dc30093456ec97727",
+    "canonical_sha256": "41a031bcc4a99b5281961cd5eea34b35010b5b2f2606bd70f1afa759a0317ce9",
+    "verified_differences": [
+      "One docstring line describes the independent task bundle.",
+      "One added line saves the running script as prepare_provenance.py before preparation."
+    ],
+    "data_split_hvg_algorithm_differences": [],
+    "canonical_source_equivalent_script": "preprocessing/_vendor/combosciplex/prepare.py"
+  },
+  "source_copy_policy": "One executable copy; source_sha256 retained. Reconstruct identical originals from destination, or apply source_reconstruction.patch to destination bytes."
+}

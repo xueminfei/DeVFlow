@@ -1,0 +1,206 @@
+{
+  "schema": "devflow_preprocessing_sources_v1",
+  "scope": "Migrated preprocessing source and portable launchers; no raw-data or SE extraction run in this migration",
+  "source_manifests": [
+    "sciplex3_sources.json",
+    "combosciplex_sources.json",
+    "norman_sources.json",
+    "_vendor/se_source_manifest.json"
+  ],
+  "files_sha256": {
+    "__init__.py": "4b413a769cbe3a0b83b28913a1f646e0967637f1733b12bf4b030475341cf0b0",
+    "__main__.py": "79fec1f94b37117382f5da144641a473db261a846bbba67023886712be3fbad0",
+    "_vendor/NOTICE.md": "37e40a08884cc43c569d67bb8e06208835644db90c4b17302cbea082e82bf0d1",
+    "_vendor/combosciplex/LICENSE": "e2e5f9dd54e8cb8c79b085b1d08277891406a7582502871efd28643b6e52dc24",
+    "_vendor/combosciplex/dependencies/flowmatching/drug.py": "25e460b7ab0ce0797ddc5220fb03f3bb2354e5f14341e2d179b0b870a9066fd4",
+    "_vendor/combosciplex/dependencies/model/mega_molbart/STMencoder_ddp.py": "0bf36cb2f78af10c67979c81050ee18b9f46a432906daaaf1c9fd3faa976a453",
+    "_vendor/combosciplex/dependencies/model/mega_molbart/decoder.py": "8965aeccc8be701ed896585b6fdf4b1f34c576a1f1683b6347af97b438190d21",
+    "_vendor/combosciplex/dependencies/model/mega_molbart/megatron_bart.py": "603b3132fdd72ee26f85a2086ce5fa5f06453bbcdbd90b3f529337aadce78950",
+    "_vendor/combosciplex/dependencies/model/mega_molbart/tokenizer.py": "ee0d7a7ebe0138d20b907af604ebedf57c8601afba0208c0286cd2c802a0fa56",
+    "_vendor/combosciplex/dependencies/model/mega_molbart/util.py": "cfcc3575a605e099cf8eea89426c41d58f3b20226e41b075831c236ebdc57b94",
+    "_vendor/combosciplex/dependencies/model/smiles_kg_encoder_v3.py": "32d1c369bd820a6c6f0013d63621a8aafa97c2dc941042188f7046c381779207",
+    "_vendor/combosciplex/extract_se.py": "508b63c564eda81a983c3cef24813e6a6f357aa55dab57e36469488c56e11458",
+    "_vendor/combosciplex/prepare.py": "41a031bcc4a99b5281961cd5eea34b35010b5b2f2606bd70f1afa759a0317ce9",
+    "_vendor/combosciplex/prepare_drugs.py": "0ad26489066323b59adfad738e11ca5fe3355379c3041adf46cd9f171df6f975",
+    "_vendor/combosciplex/provenance/drug_smiles_input.json": "7ef298360053c9d415ba720994600c57edf922f7d6764792331cf48b48fcc324",
+    "_vendor/combosciplex/provenance/hvg_fit_statistics.json": "69210f41b301cb7c6818bfb66ea165b6076c181dd000d3dd6d250eb84ada67a3",
+    "_vendor/combosciplex/provenance/manifest.json": "0bb7a0ed46f8c764a8b346d0ae6604c28f4520ef867cf45d7875b8bf00d8aa5f",
+    "_vendor/combosciplex/provenance/original_decoder_hvg_info.json": "ecb3520539067d76adc2c096a6d29918fea9573f1d72883dfb702c9a546e30f9",
+    "_vendor/combosciplex/provenance/prepare_provenance.py": "89828b4cd93b3ec303a2338b9d25dd931dfd0f07fc96df5dc30093456ec97727",
+    "_vendor/combosciplex/provenance/se_cache_audit.json": "6ccd5adecb065a365ec3bd0c74f3dc66e3754c620692097070a450889a2514a9",
+    "_vendor/combosciplex/provenance/split_audit.json": "cb048304b853161355c89b72c3a4ac2269aeba95e89109395401f2e0dfe38976",
+    "_vendor/combosciplex/provenance/v1_test_control_cell_ids.json": "359d052cd7e96411b766c564feb1b936480bbeeea9a65bc910d05443aec94941",
+    "_vendor/control_prefix/prepare_prefix.py": "2e19fc2cde868f319b952ad532cdc42043fbf08b1945f195f127f7db0203e8ea",
+    "_vendor/control_prefix/se_control_lora.py": "c499bff28889fb2d71897244548b72c9d9b9485856e820351d88f9fa5773e051",
+    "_vendor/hvg_compat/hvg_compat.py": "62c12b9ae571e1472fc16084fe294f6767950e89e5421d61913e5934e3a806fb",
+    "_vendor/norman/LICENSE": "e2e5f9dd54e8cb8c79b085b1d08277891406a7582502871efd28643b6e52dc24",
+    "_vendor/norman/dependencies/flowmatching/__init__.py": "b6a5338df1d727e7dcdfb3e0153f99c8a64109a2613680c5e9134f288fa2e426",
+    "_vendor/norman/dependencies/flowmatching/control_model.py": "64c8cd86deffb745280a6a6f942112db81e95712dc40e0cb3a73bfe2e38aaf6b",
+    "_vendor/norman/dependencies/flowmatching/losses.py": "682f9747fb11b491a611ce7f11932321f833facafc4f87f7471b8c25341ed292",
+    "_vendor/norman/dependencies/flowmatching/model.py": "74850aff84ba1800173d1fd71ecd46e240828fea7a59bffc5fe9e9c04ab8b20a",
+    "_vendor/norman/dependencies/flowmatching/norman_gene_model.py": "2947fff3f61d9a5085f406002770839dc31c15faff34baa550bce83485f08072",
+    "_vendor/norman/dependencies/flowmatching/ot_matching.py": "4c4b623a91039aca686587208a993891d5b48ff75f9811b864338c3fa9d097e5",
+    "_vendor/norman/dependencies/flowmatching/time_adapter.py": "d2571310171b7d5421c9d0e24212be91200301aacaf40c9d734c9f9fcd92c135",
+    "_vendor/norman/dependencies/flowmatching/upstream.py": "9fb3935c669932b35e05ae171defb44caa5510f1ae71659cd6a432613a9cb0ce",
+    "_vendor/norman/dependencies/model/components.py": "bb55a571c91b53daffc8ba77cfa07f6d9c37fb2180e38c4503cad97762d35952",
+    "_vendor/norman/dependencies/model/gene_decoders.py": "bf2242a1bc2c239c0621aaf1d50a56dcc5e22b5a5757c0e2fbe698014f5f9246",
+    "_vendor/norman/dependencies/scripts/prepare_norman_additive.py": "acb43d0190a556a6a8a410f4f5eb54d312ded7243e16a88983e83f225d5933c0",
+    "_vendor/norman/dependencies/scripts/prepare_norman_decoder.py": "92ac7645998c8d7c6343fe29f7978668021a3de5114387e1ecfa60322cd23bba",
+    "_vendor/norman/dependencies/scripts/prepare_norman_gene_assets.py": "7203c9ddcf327c508645c7cd231713807411a0947c0ecd5eb3176326988b50a6",
+    "_vendor/norman/provenance/download_manifest.json": "06b1693c4dc2c561f14dd10436945ab5ff9a65f2514d68c6d37cfe116f68c447",
+    "_vendor/norman/provenance/gene_condition_assets.summary.json": "76d7ac934975cddaacde78ab29fe41ae53fd38b4ed097ab59cf60913ea368abe",
+    "_vendor/norman/provenance/prepare_manifest.json": "c7e4904274450d0ca9fb48771ac2c52e04c9f2fad8ca8c24f332e03333b78d03",
+    "_vendor/norman/provenance/state_embeddings.json": "ede0ec31983d50b7944ce8ea9bdd287a9331ecc65c29bddca3683528900851c1",
+    "_vendor/sciplex3/A_fetch_cell_line.py": "ff703133c1d62b9f9b9cc2d130d5573654667df22fe1315d54a99a5880856346",
+    "_vendor/sciplex3/B_watch_cell_line.py": "0ea7cc551398f30176a0caae114093be129467fd847d28ce4a4d076832e6b3bf",
+    "_vendor/sciplex3/C_uni_multi_process.py": "ecc82d1ffc002914b43074add2e217e3958d2945a0ea10e1a447afb5c126c323",
+    "_vendor/sciplex3/D_extract_se_emb.py": "b7375519b29160f7dc7dc194930a65441012238b4b3a5c79d8408de5c0b96a19",
+    "_vendor/sciplex3/E_hvg_multi_celllines.py": "099bc284a565d8743ea5261493816cf7640af525e51fa1ec217bd94e60928854",
+    "_vendor/sciplex3/F_gemini_opt_preprocess.py": "62757f96957f6872c1bf76ac5b17384b5df912abfef0a272ebf0f2008eb54338",
+    "_vendor/sciplex3/G_extract_se_input_for_lora.py": "3e019fbf817e1bf541dcf6982d5d579873fffe26da31b13641f37e63b7bf56b5",
+    "_vendor/sciplex3/LICENSE": "e2e5f9dd54e8cb8c79b085b1d08277891406a7582502871efd28643b6e52dc24",
+    "_vendor/sciplex3/data/ds_tahoe_se.py": "8a319813152a27115fa056e74fda343e5b917116f438faa1b638d794ed51987b",
+    "_vendor/sciplex3/data/tahoe.py": "1c757ef40e5e08fcc71771898bb2cc59c228bf4129191c5eb3a70ba342eee1bd",
+    "_vendor/sciplex3/data/utils.py": "af0d7da879a865ecd5dd1bb438c9f4eb177ee476741e80894816d09a638f5f7e",
+    "_vendor/sciplex3/model/cell_emb.py": "f483e440e26bbf5a272e374677cfe4911fa2e3350853a64aa9e39e246fee2dc1",
+    "_vendor/sciplex3/model/flash_transformer.py": "0246e3a28de11f6578f83ebdb5612cd30c618061a1ae6497533a2ab41fcb9330",
+    "_vendor/sciplex3/model/se.py": "024717eed82fa437a19a7a25b8be59f8f570cb491b7f5bd9b3857122a8947ab3",
+    "_vendor/sciplex3/sciplex_utils.py": "0267549a41069cc532505cce83a1e2c3b255103b91796b17d5370e1c1aef2d93",
+    "_vendor/se_dependency_notes.json": "25ba3614d42ffc6bdab2b0105a6d03f550f1dca7eac4120ca22e27335536832c",
+    "_vendor/se_source_manifest.json": "325992eaca77c6f593f4ddafb4e1dae2bc368f7d8a0da6b68644109a53510782",
+    "_vendor/state_encoder/LICENSE": "e2e5f9dd54e8cb8c79b085b1d08277891406a7582502871efd28643b6e52dc24",
+    "_vendor/state_encoder/configs/se600m.yaml": "6d2e1e1efab6aa8b6e8d4ba143dd2b53854ef34fcdc5cb3c650d160fba089df5",
+    "_vendor/state_encoder/data/utils.py": "af0d7da879a865ecd5dd1bb438c9f4eb177ee476741e80894816d09a638f5f7e",
+    "_vendor/state_encoder/model/flash_transformer.py": "0246e3a28de11f6578f83ebdb5612cd30c618061a1ae6497533a2ab41fcb9330",
+    "_vendor/state_encoder/model/se.py": "805fc10a6c7fc3ae681b2c4960135394fd032e5e620f8a206ebac4e5e8e3307c",
+    "combosciplex.py": "53539dbe21d5e3b72b79f12619932818a02e39e110a83213a9b359f7956cc12a",
+    "combosciplex_sources.json": "db4f63044fb58147f745ee82ba8617ac145970f66d4615925b29237ccddc2f97",
+    "norman.py": "3e78b9d7bb65eebdd9b54eec93418e5d17240a99523e96e107faeb4cae631ed2",
+    "norman_sources.json": "ef6daada262e351e54031c5f1ba3491e807093de7ea5ce30e3d7467e25a3a21a",
+    "sciplex3.py": "6b55fb9628434fece20990e1f985c458468ffa8d58c4ce6ca0f5bcd47a937ee0",
+    "sciplex3_sources.json": "3452b22f72f05c16a808bbffe4f6272302cdf6e2fd190b349133b7302cf697e8",
+    "train_union.py": "559025769650f21247217f4e56f8619c0a7cb523f26d4f95c46e3f745948372f"
+  },
+  "environment_files": {
+    "requirements.txt": "4f63d6b5b0c9d6c4beea1267395eb49bbae38123b13dfe49769178e19aedb35f",
+    "pyproject.toml": "1d013d1fcc7c6b02ce912a9f3868e39d008716870046a93db2229a8b52a4e32c"
+  },
+  "directory_naming": {
+    "scope": "Functional directory names; original source repository paths and all licenses retained.",
+    "path_map": {
+      "_vendor/map_preprocess": "_vendor/sciplex3",
+      "_vendor/map_runtime": "_vendor/state_encoder",
+      "_vendor/mapflow_prefix": "_vendor/control_prefix",
+      "_vendor/mapflow_compat": "_vendor/hvg_compat",
+      "_vendor/combosciplex/MAP": "_vendor/combosciplex/dependencies",
+      "_vendor/combosciplex/original/MAP": "_vendor/combosciplex/original/dependencies",
+      "_vendor/norman/MAP": "_vendor/norman/dependencies",
+      "_vendor/norman/original/MAP": "_vendor/norman/original/dependencies"
+    },
+    "code_path_adaptations": {
+      "sciplex3.py": {
+        "before_sha256": "52d5e602387af47e5adc33616cbd39a1d28aca9a79182d45e888cae96bd193f5",
+        "after_sha256": "6b55fb9628434fece20990e1f985c458468ffa8d58c4ce6ca0f5bcd47a937ee0",
+        "replacements": [
+          {
+            "from": "map_preprocess",
+            "to": "sciplex3"
+          },
+          {
+            "from": "map_runtime",
+            "to": "state_encoder"
+          },
+          {
+            "from": "mapflow_prefix",
+            "to": "control_prefix"
+          },
+          {
+            "from": "mapflow_compat",
+            "to": "hvg_compat"
+          }
+        ]
+      },
+      "combosciplex.py": {
+        "before_sha256": "4f56749b5b3e61b53d9f1730f958c8666054c7f3563048c8db7942b5a74c0aa8",
+        "after_sha256": "53539dbe21d5e3b72b79f12619932818a02e39e110a83213a9b359f7956cc12a",
+        "replacements": [
+          {
+            "from": "task / \"MAP\"",
+            "to": "task / \"dependencies\""
+          },
+          {
+            "from": "map_runtime",
+            "to": "state_encoder"
+          }
+        ]
+      },
+      "norman.py": {
+        "before_sha256": "05f9ae594cab3142e6b13028cb033a606cb1a123ea267186b8b28eb4902cc2fa",
+        "after_sha256": "3e78b9d7bb65eebdd9b54eec93418e5d17240a99523e96e107faeb4cae631ed2",
+        "replacements": [
+          {
+            "from": "VENDOR / \"norman\" / \"MAP\"",
+            "to": "VENDOR / \"norman\" / \"dependencies\""
+          },
+          {
+            "from": "map_runtime",
+            "to": "state_encoder"
+          }
+        ]
+      },
+      "_vendor/combosciplex/extract_se.py": {
+        "before_sha256": "2cdbf132c4e3636e6f8e318d2bc8be4c6975f58e20b9d0ea3b63a49836fd3cbc",
+        "after_sha256": "508b63c564eda81a983c3cef24813e6a6f357aa55dab57e36469488c56e11458",
+        "replacements": [
+          {
+            "from": "'map_runtime'",
+            "to": "'state_encoder'"
+          }
+        ]
+      },
+      "_vendor/control_prefix/prepare_prefix.py": {
+        "before_sha256": "42bf57e357463f13f000b3205c77785734874bfbcf9bd82e17d4da7d6c57813f",
+        "after_sha256": "2e19fc2cde868f319b952ad532cdc42043fbf08b1945f195f127f7db0203e8ea",
+        "replacements": [
+          {
+            "from": "'map_runtime'",
+            "to": "'state_encoder'"
+          }
+        ]
+      },
+      "_vendor/hvg_compat/hvg_compat.py": {
+        "before_sha256": "29dfdaac4a36b6bc556659f9108c7c167139bfada4358a91820d0a60b8bbe321",
+        "after_sha256": "62c12b9ae571e1472fc16084fe294f6767950e89e5421d61913e5934e3a806fb",
+        "replacements": [
+          {
+            "from": "\"map_preprocess/E_hvg_multi_celllines.py\"",
+            "to": "\"sciplex3/E_hvg_multi_celllines.py\""
+          }
+        ]
+      },
+      "_vendor/norman/dependencies/scripts/prepare_norman_gene_assets.py": {
+        "before_sha256": "8ebc37ea9460fe559bdeedd1272c49dbb60536f53618bb5292c01de3fab670c3",
+        "after_sha256": "7203c9ddcf327c508645c7cd231713807411a0947c0ecd5eb3176326988b50a6",
+        "replacements": [
+          {
+            "from": "ROOT / \"MAP\"",
+            "to": "ROOT / \"dependencies\""
+          }
+        ]
+      }
+    },
+    "raw_processing_executed": false,
+    "cache_regenerated": false,
+    "path_map_scope": "Historical rename record; paths may no longer exist. files_sha256 is the current file index."
+  },
+  "original_copy_deduplication": {
+    "removed_source_copies": 21,
+    "identical_to_destination": 17,
+    "embedded_reconstruction_patches": 4,
+    "patch_direction": "destination_to_source",
+    "source_hash_field": "source_sha256",
+    "runtime_code_modified": false,
+    "raw_processing_executed": false,
+    "cache_regenerated": false
+  }
+}

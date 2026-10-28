@@ -1,0 +1,236 @@
+{
+  "task": "norman",
+  "source_commit": "3786dd6a8ce03aca996ab5d7b5dc10bc85689215",
+  "migration_scope": "Source and small provenance only; existing raw data, frozen caches and model checkpoints were not regenerated or modified.",
+  "files": [
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/scripts/prepare_norman_additive.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_additive.py",
+      "source_sha256": "b29eac23fafb76e5b01a922d73fb085bbdb25806c59147bb74a65c4365663a4b",
+      "portable_sha256": "acb43d0190a556a6a8a410f4f5eb54d312ded7243e16a88983e83f225d5933c0",
+      "adaptations": [
+        {
+          "from": "    try:\n        return subprocess.check_output([\"git\", \"-C\", str(root), \"rev-parse\", \"HEAD\"], text=True).strip()\n    except Exception:\n        return None",
+          "to": "    # Historical generator source commit; no live repository dependency.\n    return '3786dd6a8ce03aca996ab5d7b5dc10bc85689215'"
+        }
+      ],
+      "source_reconstruction": {
+        "method": "unified_diff",
+        "direction": "destination_to_source",
+        "patch": "--- a/preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_additive.py\n+++ b/preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_additive.py\n@@ -162,8 +162,10 @@\n \n \n def _git_commit(root: Path) -> str | None:\n-    # Historical generator source commit; no live repository dependency.\n-    return '3786dd6a8ce03aca996ab5d7b5dc10bc85689215'\n+    try:\n+        return subprocess.check_output([\"git\", \"-C\", str(root), \"rev-parse\", \"HEAD\"], text=True).strip()\n+    except Exception:\n+        return None\n \n \n def _target_gene_symbols(singles: list[str]) -> list[str]:\n"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/scripts/prepare_norman_decoder.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_decoder.py",
+      "source_sha256": "78e38d4d43484b3467ab7604ae556d5a9ef6b817b37da5bc932ce44b594e39ec",
+      "portable_sha256": "92ac7645998c8d7c6343fe29f7978668021a3de5114387e1ecfa60322cd23bba",
+      "adaptations": [
+        {
+          "from": "ROOT / \"experiments/dataset_interfaces/combosciplex/extract_se.py\"",
+          "to": "Path(__file__).resolve().parents[3] / \"combosciplex/extract_se.py\""
+        },
+        {
+          "from": "DEFAULT_SPLIT = ROOT / \"datasets/norman_scdfm_figshare_20261016/norman_split_double_pair_holdout_seed42.json\"",
+          "to": "DEFAULT_SPLIT = Path(\"condition_manifest.json\")  # CLI requires an explicit manifest."
+        },
+        {
+          "from": "prep.add_argument(\"--condition-manifest\")",
+          "to": "prep.add_argument(\"--condition-manifest\", required=True)"
+        }
+      ],
+      "source_reconstruction": {
+        "method": "unified_diff",
+        "direction": "destination_to_source",
+        "patch": "--- a/preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_decoder.py\n+++ b/preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_decoder.py\n@@ -29,8 +29,8 @@\n import numpy as np\n \n ROOT = Path(__file__).resolve().parents[2]\n-EXTRACT_PATH = Path(__file__).resolve().parents[3] / \"combosciplex/extract_se.py\"\n-DEFAULT_SPLIT = Path(\"condition_manifest.json\")  # CLI requires an explicit manifest.\n+EXTRACT_PATH = ROOT / \"experiments/dataset_interfaces/combosciplex/extract_se.py\"\n+DEFAULT_SPLIT = ROOT / \"datasets/norman_scdfm_figshare_20261016/norman_split_double_pair_holdout_seed42.json\"\n \n \n def sha_file(path: Path, chunk: int = 8 * 1024 * 1024) -> str:\n@@ -460,7 +460,7 @@\n     sub = parser.add_subparsers(dest=\"command\", required=True)\n     prep = sub.add_parser(\"prepare\")\n     prep.add_argument(\"--h5ad\", required=True)\n-    prep.add_argument(\"--condition-manifest\", required=True)\n+    prep.add_argument(\"--condition-manifest\")\n     prep.add_argument(\"--gene-embeddings\", required=True)\n     prep.add_argument(\"--output-dir\", required=True)\n     prep.add_argument(\"--seed\", type=int, default=42)\n"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/scripts/prepare_norman_gene_assets.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_gene_assets.py",
+      "source_sha256": "70a3cf86177fa76279ea763f8eb2a1cadf266fa2bf02d2750d62a1e3526b850a",
+      "portable_sha256": "7203c9ddcf327c508645c7cd231713807411a0947c0ecd5eb3176326988b50a6",
+      "adaptations": [
+        {
+          "from": "ROOT / \"experiments/dataset_interfaces/combosciplex/extract_se.py\"",
+          "to": "Path(__file__).resolve().parents[3] / \"combosciplex/extract_se.py\""
+        },
+        {
+          "from": "git_commit from generator working tree",
+          "to": "git_commit from containing current repository HEAD (None when unavailable); separate source_git_commit records the historical generator source 3786dd6a8ce03aca996ab5d7b5dc10bc85689215"
+        },
+        {
+          "from": "ROOT / \"MAP\"",
+          "to": "ROOT / \"dependencies\""
+        }
+      ],
+      "source_reconstruction": {
+        "method": "unified_diff",
+        "direction": "destination_to_source",
+        "patch": "--- a/preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_gene_assets.py\n+++ b/preprocessing/_vendor/norman/dependencies/scripts/prepare_norman_gene_assets.py\n@@ -24,7 +24,7 @@\n from scipy import sparse\n \n ROOT = Path(__file__).resolve().parents[2]\n-sys.path.insert(0, str(ROOT / \"dependencies\"))\n+sys.path.insert(0, str(ROOT / \"MAP\"))\n from flowmatching.norman_gene_model import FrozenMAPGeneProjector\n from prepare_norman_decoder import h5_metadata, parse_condition_genes\n \n@@ -37,18 +37,6 @@\n \n def ordered(values):\n     return hashlib.sha256(\"\\n\".join(map(str, values)).encode()).hexdigest()\n-\n-def _repository_commit():\n-    \"\"\"Return the containing repository HEAD, or None outside a Git checkout.\"\"\"\n-    repository = Path(__file__).resolve().parents[5]\n-    try:\n-        return subprocess.check_output(\n-            [\"git\", \"-C\", str(repository), \"rev-parse\", \"HEAD\"],\n-            text=True, stderr=subprocess.DEVNULL,\n-        ).strip()\n-    except (OSError, subprocess.CalledProcessError):\n-        return None\n-\n \n def main():\n     p = argparse.ArgumentParser(description=__doc__)\n@@ -95,7 +83,7 @@\n             first, last = indptr[row:row+2]\n             np.add.at(profile, x[\"indices\"][first:last], x[\"data\"][first:last])\n         profile /= len(rows)\n-    extract_path = Path(__file__).resolve().parents[3] / \"combosciplex/extract_se.py\"\n+    extract_path = ROOT / \"experiments/dataset_interfaces/combosciplex/extract_se.py\"\n     spec = importlib.util.spec_from_file_location(\"norman_original_se\", extract_path)\n     ext = importlib.util.module_from_spec(spec)\n     spec.loader.exec_module(ext)\n@@ -129,7 +117,7 @@\n     record = {\n         \"format_version\": 1, \"complete\": True, \"created_unix\": time.time(),\n         \"host_alias\": os.environ.get(\"MAPFLOW_HOST_ALIAS\"), \"hostname\": socket.gethostname(),\n-        \"code_root\": str(ROOT), \"git_commit\": _repository_commit(), \"source_git_commit\": '3786dd6a8ce03aca996ab5d7b5dc10bc85689215',\n+        \"code_root\": str(ROOT), \"git_commit\": subprocess.check_output([\"git\", \"-C\", str(ROOT), \"rev-parse\", \"HEAD\"], text=True).strip(),\n         \"args\": {k: str(v) for k, v in vars(a).items()},\n         \"h5ad_sha256\": sha(a.h5ad), \"cell_order_sha256\": ordered(meta[\"cell_ids\"]),\n         \"control_split_sha256\": sha(a.control_split),\n"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/flowmatching/norman_gene_model.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/flowmatching/norman_gene_model.py",
+      "source_sha256": "2947fff3f61d9a5085f406002770839dc31c15faff34baa550bce83485f08072",
+      "portable_sha256": "2947fff3f61d9a5085f406002770839dc31c15faff34baa550bce83485f08072",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/flowmatching/control_model.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/flowmatching/control_model.py",
+      "source_sha256": "64c8cd86deffb745280a6a6f942112db81e95712dc40e0cb3a73bfe2e38aaf6b",
+      "portable_sha256": "64c8cd86deffb745280a6a6f942112db81e95712dc40e0cb3a73bfe2e38aaf6b",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/flowmatching/model.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/flowmatching/model.py",
+      "source_sha256": "74850aff84ba1800173d1fd71ecd46e240828fea7a59bffc5fe9e9c04ab8b20a",
+      "portable_sha256": "74850aff84ba1800173d1fd71ecd46e240828fea7a59bffc5fe9e9c04ab8b20a",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/flowmatching/losses.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/flowmatching/losses.py",
+      "source_sha256": "682f9747fb11b491a611ce7f11932321f833facafc4f87f7471b8c25341ed292",
+      "portable_sha256": "682f9747fb11b491a611ce7f11932321f833facafc4f87f7471b8c25341ed292",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/flowmatching/ot_matching.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/flowmatching/ot_matching.py",
+      "source_sha256": "4c4b623a91039aca686587208a993891d5b48ff75f9811b864338c3fa9d097e5",
+      "portable_sha256": "4c4b623a91039aca686587208a993891d5b48ff75f9811b864338c3fa9d097e5",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/flowmatching/time_adapter.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/flowmatching/time_adapter.py",
+      "source_sha256": "d2571310171b7d5421c9d0e24212be91200301aacaf40c9d734c9f9fcd92c135",
+      "portable_sha256": "d2571310171b7d5421c9d0e24212be91200301aacaf40c9d734c9f9fcd92c135",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/flowmatching/upstream.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/flowmatching/upstream.py",
+      "source_sha256": "9fb3935c669932b35e05ae171defb44caa5510f1ae71659cd6a432613a9cb0ce",
+      "portable_sha256": "9fb3935c669932b35e05ae171defb44caa5510f1ae71659cd6a432613a9cb0ce",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/model/components.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/model/components.py",
+      "source_sha256": "bb55a571c91b53daffc8ba77cfa07f6d9c37fb2180e38c4503cad97762d35952",
+      "portable_sha256": "bb55a571c91b53daffc8ba77cfa07f6d9c37fb2180e38c4503cad97762d35952",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    },
+    {
+      "source": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/.scratch/norman_decoder_worktree/MAP/model/gene_decoders.py",
+      "destination": "preprocessing/_vendor/norman/dependencies/model/gene_decoders.py",
+      "source_sha256": "bf2242a1bc2c239c0621aaf1d50a56dcc5e22b5a5757c0e2fbe698014f5f9246",
+      "portable_sha256": "bf2242a1bc2c239c0621aaf1d50a56dcc5e22b5a5757c0e2fbe698014f5f9246",
+      "adaptations": [],
+      "source_reconstruction": {
+        "method": "identical_to_destination"
+      }
+    }
+  ],
+  "shared_se_root": "preprocessing/_vendor/state_encoder",
+  "shared_se_files": [
+    "model/se.py",
+    "model/flash_transformer.py",
+    "data/utils.py",
+    "configs/se600m.yaml"
+  ],
+  "license": "preprocessing/_vendor/norman/LICENSE",
+  "provenance_sidecars": [
+    {
+      "path": "preprocessing/_vendor/norman/provenance/download_manifest.json",
+      "sha256": "06b1693c4dc2c561f14dd10436945ab5ff9a65f2514d68c6d37cfe116f68c447",
+      "bytes": 1806
+    },
+    {
+      "path": "preprocessing/_vendor/norman/provenance/gene_condition_assets.summary.json",
+      "sha256": "76d7ac934975cddaacde78ab29fe41ae53fd38b4ed097ab59cf60913ea368abe",
+      "bytes": 3114
+    },
+    {
+      "path": "preprocessing/_vendor/norman/provenance/prepare_manifest.json",
+      "sha256": "c7e4904274450d0ca9fb48771ac2c52e04c9f2fad8ca8c24f332e03333b78d03",
+      "bytes": 3447
+    },
+    {
+      "path": "preprocessing/_vendor/norman/provenance/state_embeddings.json",
+      "sha256": "ede0ec31983d50b7944ce8ea9bdd287a9331ecc65c29bddca3683528900851c1",
+      "bytes": 8985
+    }
+  ],
+  "execution_policy": "Use wrappers in independent subprocesses. Existing complete outputs are immutable. No raw preprocessing, model loading or training was run during migration.",
+  "actual_assets": {
+    "trial": "outputs/norman_loss_search_20261020/trials/trial_0003/flow_fold0",
+    "split": "datasets/norman_official_additive_20261018/fold_0",
+    "se_cache": "datasets/norman_decoder_pairholdout_seed42_20261017/se_embeddings.npy",
+    "se_embeddings_sha256": "483377fa11f6ce50c116b791c8efa697d957ef7bb19045f7b29c1d79791e1c43",
+    "se_amp_dtype": "bf16",
+    "h5ad_sha256": "20a67e0e9e1059b631f3d3fe56a78b5856c1609339ded37cf20f2d49af1b87d7",
+    "gene_assets": "datasets/norman_gene_condition_assets_additive_20261018/gene_condition_assets.pt",
+    "gene_assets_sha256": "3071d8d8a1e1545695bcb70f809346d060805689db39746b39b8289f1f8a56b3",
+    "background_kind": "train_control_pool_mean",
+    "gene_projector_kind": "map_predictor",
+    "gene_projector_checkpoint_sha256": "f88b90192d5239f2d8aeafb4bffbccc3f54101c613c4b7b64582fdc611fdb307"
+  },
+  "order": [
+    "For an existing paper cache: prepare with --se-embeddings; then gene-assets for fold_0. No SE regeneration is needed.",
+    "Only for rebuilding the historical all-cell SE cache: prepare-se with the explicit historical 201/25 condition manifest; encode each shard with bf16; merge. This cache producer split is not the final 189/37 additive evaluation split.",
+    "prepare uses official additive split (101 single +88 double train /37 double test), exact control seed4242, train-only baseHVG2000 union101 targets.",
+    "gene-assets uses the final additive fold control IDs and frozen train-control mean(lognormalized X); expm1 is only the tokenizer interface conversion."
+  ],
+  "shared_se_verified_sha256": {
+    "model/se.py": "805fc10a6c7fc3ae681b2c4960135394fd032e5e620f8a206ebac4e5e8e3307c",
+    "model/flash_transformer.py": "0246e3a28de11f6578f83ebdb5612cd30c618061a1ae6497533a2ab41fcb9330",
+    "data/utils.py": "af0d7da879a865ecd5dd1bb438c9f4eb177ee476741e80894816d09a638f5f7e"
+  },
+  "wrapper": {
+    "path": "preprocessing/norman.py",
+    "sha256": "3e78b9d7bb65eebdd9b54eec93418e5d17240a99523e96e107faeb4cae631ed2",
+    "adaptations": [
+      "Child process inherits caller cwd so relative CLI paths match the output protection checks.",
+      "Output flag checks follow argparse last-value semantics for repeated --flag VALUE and --flag=VALUE arguments.",
+      {
+        "from": "VENDOR / \"norman\" / \"MAP\"",
+        "to": "VENDOR / \"norman\" / \"dependencies\""
+      },
+      {
+        "from": "map_runtime",
+        "to": "state_encoder"
+      }
+    ]
+  },
+  "source_copy_policy": "One executable copy; source_sha256 retained. Reconstruct identical originals from destination, or apply source_reconstruction.patch to destination bytes."
+}

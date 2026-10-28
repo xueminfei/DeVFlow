@@ -1,0 +1,106 @@
+{
+  "task": "norman19",
+  "setting": "additive",
+  "data": {
+    "h5ad": "${DEVFLOW_DATA_ROOT}/norman19/norman.h5ad",
+    "split_manifest": "${DEVFLOW_DATA_ROOT}/norman19/additive/fold_0/condition_manifest.json",
+    "control_split": "${DEVFLOW_DATA_ROOT}/norman19/additive/fold_0/control_split.json",
+    "gene_indices": "${DEVFLOW_DATA_ROOT}/norman19/additive/fold_0/gene_indices.npy",
+    "genes": "${DEVFLOW_DATA_ROOT}/norman19/additive/fold_0/genes.json",
+    "state_embeddings": "${DEVFLOW_DATA_ROOT}/norman19/frozen_features/se_embeddings.npy",
+    "state_metadata": "${DEVFLOW_DATA_ROOT}/norman19/frozen_features/state_embeddings.json",
+    "gene_condition_assets": "${DEVFLOW_DATA_ROOT}/norman19/additive/fold_0/gene_condition_assets.pt",
+    "projector_checkpoint": "${DEVFLOW_DATA_ROOT}/norman19/pretrained/map_predictor.pt",
+    "decoder_checkpoint": "${DEVFLOW_DATA_ROOT}/norman19/additive/decoder_stage2/checkpoint_step_00020000.pt",
+    "decoder_training_manifest": "${DEVFLOW_DATA_ROOT}/norman19/additive/decoder_stage2/run_manifest.json",
+    "source_decoder_checkpoint": "${DEVFLOW_DATA_ROOT}/norman19/pretrained/map_predictor.pt",
+    "source_decoder_genes": "${DEVFLOW_DATA_ROOT}/norman19/pretrained/map_decoder_genes.json",
+    "hvg_provenance": "${DEVFLOW_DATA_ROOT}/norman19/additive/fold_0/hvg_provenance.json"
+  },
+  "expected_counts": {
+    "train_conditions": 189,
+    "test_conditions": 37,
+    "genes": 2054
+  },
+  "model": {
+    "state_dim": 2048,
+    "source_dim": 1024,
+    "source_hidden_dim": 2048,
+    "gene_condition_dim": 1024,
+    "attention_heads": 8,
+    "attention_layers": 2,
+    "attention_dropout": 0.1,
+    "target_role_trainable": true,
+    "velocity_state_dims": [
+      2048,
+      2048,
+      2048
+    ],
+    "velocity_time_dims": [
+      1024,
+      1024,
+      1024
+    ],
+    "velocity_decoder_dims": [
+      4096,
+      4096,
+      4096
+    ],
+    "time_frequencies": 1024,
+    "decoder_hidden_dims": [
+      512,
+      1024
+    ],
+    "decoder_dropout": 0.1,
+    "decoder_output_activation": "relu"
+  },
+  "training": {
+    "steps": 50000,
+    "batch_size": 128,
+    "learning_rate": 0.0001,
+    "mean_shift_weight": 0.005,
+    "expression_mmd_weight": 5e-06,
+    "expression_mean_weight": 4.966990102795232e-05,
+    "expression_mean_decoder_only": true,
+    "expression_residual_weight": 0.0,
+    "expression_mmd_time_points": 5,
+    "expression_mmd_every": 1,
+    "train_decoder": true,
+    "path_sigma": 0.5,
+    "ot_epsilon": 1.0,
+    "ot_max_iterations": 2000,
+    "ot_tolerance": 0.001,
+    "gradient_clip": 1.0,
+    "amp_dtype": "bf16",
+    "seed": 42,
+    "log_every": 10,
+    "save_every": 5000
+  },
+  "decoder_training": {
+    "output_dir": "outputs/norman19/additive/decoder_stage1",
+    "steps": 50000,
+    "batch_size": 128,
+    "learning_rate": 0.0001,
+    "mean_loss_weight": 1.0,
+    "mmd_weight": 1.0,
+    "seed": 42,
+    "save_every": 5000
+  },
+  "prediction": {
+    "checkpoint": "outputs/norman19/additive/flow/checkpoint_step_00050000.pt",
+    "output_dir": "outputs/norman19/additive/predictions",
+    "seeds": [
+      4243,
+      4244,
+      4245,
+      4246
+    ],
+    "cells_per_condition": 128,
+    "time_points": 80,
+    "chunk_size": 128
+  },
+  "output_dir": "outputs/norman19/additive/flow",
+  "references": {
+    "output_dir": "outputs/norman19/additive/evaluation_references"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "task": "combosciplex",
+  "data": {
+    "bundle": "${DEVFLOW_DATA_ROOT}/combosciplex/combinations_v3_train18_test5",
+    "drug_bank": "${DEVFLOW_DATA_ROOT}/combosciplex/mapkg_drug_embeddings.pt",
+    "decoder_checkpoint": "${DEVFLOW_DATA_ROOT}/combosciplex/strong_decoder.pt"
+  },
+  "model": {
+    "state_dim": 2048,
+    "expression_dim": 2000,
+    "condition_dim": 2052,
+    "source_condition": false,
+    "direct_condition": true,
+    "condition_output_dropout": 0.1
+  },
+  "training": {
+    "world_size": 4,
+    "steps": 13000,
+    "gradient_accumulation": 4,
+    "cells_per_condition": 256,
+    "learning_rate": 5e-05,
+    "min_learning_rate": 5e-06,
+    "lr_decay_start_update": 500,
+    "lr_decay_end_update": 13000,
+    "path_sigma": 0.01,
+    "ot_epsilon": 0.01,
+    "ot_max_iterations": 2000,
+    "ot_tolerance": 0.001,
+    "endpoint_time_points": 80,
+    "mean_shift_loss_weight": 32.0,
+    "decoder_mean_loss_weight": 1.0,
+    "gradient_clip": 1.0,
+    "amp_dtype": "bf16",
+    "seed": 42,
+    "log_every": 25,
+    "save_every": 13000,
+    "eval_every": 1000
+  },
+  "prediction": {
+    "checkpoint": "outputs/combosciplex/flow/update_013000.pt",
+    "output_dir": "outputs/combosciplex/predictions",
+    "seeds": [
+      4242,
+      4243,
+      4244,
+      4245,
+      4246
+    ],
+    "cells_per_condition": 128,
+    "time_points": 80,
+    "chunk_size": 128,
+    "device": "cuda:0"
+  },
+  "evaluation": {
+    "references_dir": "outputs/combosciplex/references",
+    "output_dir": "outputs/combosciplex/benchmark",
+    "method": "DeVFlow"
+  },
+  "output_dir": "outputs/combosciplex/flow"
+}

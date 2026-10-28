@@ -1,0 +1,23 @@
+{
+  "protocol": "combosciplex_v3_shared_fiverepeat128_v1",
+  "task": "combosciplex",
+  "seeds": [
+    4242,
+    4243,
+    4244,
+    4245,
+    4246
+  ],
+  "condition_count": 5,
+  "cells_per_condition": 128,
+  "n_genes": 2000,
+  "de50_size": 50,
+  "distance_backend_hvg": "combo_historical",
+  "response_profile": "full_treated",
+  "training": "6 single-drug conditions and 18 two-drug combinations",
+  "external_test": "5 unseen combinations: setting A both component singles observed, setting B one observed",
+  "response_definition": "Frozen full-treated pseudobulk reference; distributions use shared 128 treated cells",
+  "historical_comparability": "Exact historical Combo distance conventions, distinct from SciPlex3 treated-only MMD; full-treated response profiles remain mandatory",
+  "aggregation": "Equal condition macro-mean per seed; mean and sample SD across five seeds",
+  "distribution_definition": "Legacy FP32 pooled-lower-median multi-sigma U-statistic; FP64 sorted EMD and target-PCA50 energy clipped below zero"
+}

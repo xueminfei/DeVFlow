@@ -1,0 +1,18 @@
+{
+  "protocol": "sciplex3_union_exact108_fourrepeat128_hvg2000_v1",
+  "task": "sciplex3",
+  "seeds": [4243, 4244, 4245, 4246],
+  "condition_count": 108,
+  "cells_per_condition": 128,
+  "n_genes": 2000,
+  "de50_size": 50,
+  "gene_order_sha256": "e63a7bf175e774407a2eb5df02931f5f50be8c308e9670c524a71c3cc1f4e5ec",
+  "distance_backend_hvg": "torch_fp32_pca50",
+  "response_profile": "sampled",
+  "training": "179 drugs; original train plus internal_test cells; 2148 conditions",
+  "external_test": "9 unseen drugs x 4 doses x 3 cell lines; all source/target IDs are locked",
+  "normalization": "Existing FP32 log1p(1000*counts/HVG2000total), no second normalization",
+  "de50": "Frozen query-specific DE50 subset of the original HVG2000 axis; no panel re-selection",
+  "aggregation": "Equal condition macro-mean per seed; mean and sample SD(ddof1) across four seeds",
+  "selection": "Formal repeats cannot select checkpoints or hyperparameters"
+}

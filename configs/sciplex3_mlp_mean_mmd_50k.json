@@ -1,0 +1,98 @@
+{
+  "task": "sciplex3",
+  "data": {
+    "base_dir": "${DEVFLOW_DATA_ROOT}/SciPlex3_train_union/processed",
+    "source_split_root": "${DEVFLOW_DATA_ROOT}/SciPlex3_original/processed",
+    "sampling_manifest": "${DEVFLOW_ASSET_ROOT}/sciplex3/sampling_manifest.json",
+    "mapkg_embeddings": "${DEVFLOW_ASSET_ROOT}/sciplex3/mapkg_drug_embeddings.pt",
+    "prefix_cache": "${DEVFLOW_ASSET_ROOT}/sciplex3/mlp_stochastic_control_prefix",
+    "tail_checkpoint": "${DEVFLOW_ASSET_ROOT}/sciplex3/se_tail_init.pt",
+    "mlp_assets": "${DEVFLOW_ASSET_ROOT}/sciplex3/mlp_mean",
+    "evaluation_references": "${DEVFLOW_ASSET_ROOT}/sciplex3/evaluation_only/references.npz",
+    "de50_references": "${DEVFLOW_ASSET_ROOT}/sciplex3/evaluation_only/de50_reference.npz"
+  },
+  "model": {
+    "family": "mlp_mean",
+    "config": {},
+    "decoder_checkpoint": "${DEVFLOW_WEIGHT_ROOT}/sciplex3/true_se_decoder.pt",
+    "loss_weights": {
+      "flow_residual": 1.0,
+      "flow_mean": 32.0,
+      "decoder_mmd": 1.0,
+      "head": 1.0
+    }
+  },
+  "training": {
+    "checkpoint": null,
+    "max_updates": 50000,
+    "world_size": 8,
+    "seed": 42,
+    "precision": "bf16",
+    "allow_tf32": true,
+    "pairs_per_condition": 256,
+    "ot_candidates": 256,
+    "decoder_cells": 256,
+    "gradient_accumulation": 4,
+    "time_points": 80,
+    "learning_rates": {
+      "flow": 5e-05,
+      "decoder": 5e-05,
+      "head": 0.001
+    },
+    "gradient_clip": {
+      "flow": 1.0,
+      "decoder": 1.0,
+      "head": 1.0
+    },
+    "schedule": {
+      "type": "cosine",
+      "start": 500,
+      "end": 13000,
+      "min_factor": 0.1
+    },
+    "checkpoint_every": 500,
+    "log_every": 10,
+    "monitor_every": 50,
+    "cpu_threads": 2
+  },
+  "evaluation": {
+    "mean_every": 500,
+    "full_every": 2000,
+    "monitor_seeds": [
+      4243
+    ],
+    "final_four_seeds": true,
+    "time_points": 80,
+    "precision": "fp32",
+    "cells": 128,
+    "allow_tf32": false,
+    "evaluation_overhead_target": 0.1
+  },
+  "prediction": {
+    "checkpoint": null,
+    "seeds": [
+      4243,
+      4244,
+      4245,
+      4246
+    ],
+    "cells": 128,
+    "time_points": 80,
+    "chunk": 128
+  },
+  "selection": {
+    "protocol": "external_selected_exploratory",
+    "primary_metric": null,
+    "candidate_metrics": {
+      "pearson_deltapert": "max",
+      "endpoint_mmd": "min",
+      "weighted_mse": "min"
+    },
+    "single_checkpoint_for_all_reported_metrics": true
+  },
+  "output_dir": "outputs/sciplex3_mlp_mean_mmd_50k",
+  "purpose": "Fresh 50000-optimizer-update training; external-test checkpoint selection is exploratory",
+  "reporting": {
+    "method": "DeVFlow MLP + trainable mixed-kernel mean + decoder MMD (50k fresh training)"
+  }
+}

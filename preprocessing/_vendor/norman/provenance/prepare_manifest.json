@@ -1,0 +1,107 @@
+{
+  "complete": true,
+  "control_seed": 4242,
+  "control_train_fraction": 0.75,
+  "created_unix": 1792257485.3725204,
+  "folds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "format_version": 1,
+  "git_commit": "3786dd6a8ce03aca996ab5d7b5dc10bc85689215",
+  "h5ad": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_scdfm_figshare_20261016/norman.h5ad",
+  "h5ad_manifest_path": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_scdfm_figshare_20261016/norman.h5ad",
+  "h5ad_sha256": "20a67e0e9e1059b631f3d3fe56a78b5856c1609339ded37cf20f2d49af1b87d7",
+  "hostname": "os-node-created-hqgrt",
+  "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018",
+  "se_cache": {
+    "path": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_decoder_pairholdout_seed42_20261017/se_embeddings.npy",
+    "sha256": "483377fa11f6ce50c116b791c8efa697d957ef7bb19045f7b29c1d79791e1c43",
+    "shape": [
+      84986,
+      2048
+    ],
+    "status": "verified"
+  },
+  "split_mode": "official_additive",
+  "summaries": [
+    {
+      "base_hvg": 2000,
+      "fit_rows": 72524,
+      "fold": 0,
+      "forced_targets": 54,
+      "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_0",
+      "target_genes": 101,
+      "test_conditions": 37,
+      "test_controls": 1819,
+      "test_treated": 10643,
+      "train_conditions": 189,
+      "train_controls": 5456,
+      "train_treated": 67068,
+      "union_hvg": 2054
+    },
+    {
+      "base_hvg": 2000,
+      "fit_rows": 74078,
+      "fold": 1,
+      "forced_targets": 53,
+      "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_1",
+      "target_genes": 101,
+      "test_conditions": 37,
+      "test_controls": 1819,
+      "test_treated": 9089,
+      "train_conditions": 189,
+      "train_controls": 5456,
+      "train_treated": 68622,
+      "union_hvg": 2053
+    },
+    {
+      "base_hvg": 2000,
+      "fit_rows": 72884,
+      "fold": 2,
+      "forced_targets": 51,
+      "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_2",
+      "target_genes": 101,
+      "test_conditions": 37,
+      "test_controls": 1819,
+      "test_treated": 10283,
+      "train_conditions": 189,
+      "train_controls": 5456,
+      "train_treated": 67428,
+      "union_hvg": 2051
+    },
+    {
+      "base_hvg": 2000,
+      "fit_rows": 74266,
+      "fold": 3,
+      "forced_targets": 52,
+      "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_3",
+      "target_genes": 101,
+      "test_conditions": 37,
+      "test_controls": 1819,
+      "test_treated": 8901,
+      "train_conditions": 189,
+      "train_controls": 5456,
+      "train_treated": 68810,
+      "union_hvg": 2052
+    },
+    {
+      "base_hvg": 2000,
+      "fit_rows": 74530,
+      "fold": 4,
+      "forced_targets": 52,
+      "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_4",
+      "target_genes": 101,
+      "test_conditions": 37,
+      "test_controls": 1819,
+      "test_treated": 8637,
+      "train_conditions": 189,
+      "train_controls": 5456,
+      "train_treated": 69074,
+      "union_hvg": 2052
+    }
+  ]
+}

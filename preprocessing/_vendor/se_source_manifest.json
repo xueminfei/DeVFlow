@@ -1,0 +1,752 @@
+{
+  "schema": "devflow_vendored_se_sources_v1",
+  "recorded_utc": "2026-10-28T14:27:25.782125+00:00",
+  "source_host": "modelarts-8gpu-1",
+  "source_repository": "/home/ma-user/work/feixuemin-workspace/MAP-main",
+  "source_git_commit": "3853e42b154f9053850da8e4de596475ed258745",
+  "source_git_selected_paths_status": "clean",
+  "copy_policy": "Original files are copied byte-for-byte; no import, inheritance, forward, numerical, configuration or dropout behavior is rewritten.",
+  "files": [
+    {
+      "vendor_root": "sciplex3",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/preprocess/model/cell_emb.py",
+      "source_repository_relative_path": "preprocess/model/cell_emb.py",
+      "destination": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "sha256": "f483e440e26bbf5a272e374677cfe4911fa2e3350853a64aa9e39e246fee2dc1",
+      "bytes": 3146,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "sciplex3",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/preprocess/model/se.py",
+      "source_repository_relative_path": "preprocess/model/se.py",
+      "destination": "preprocessing/_vendor/sciplex3/model/se.py",
+      "sha256": "024717eed82fa437a19a7a25b8be59f8f570cb491b7f5bd9b3857122a8947ab3",
+      "bytes": 24745,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "sciplex3",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/preprocess/model/flash_transformer.py",
+      "source_repository_relative_path": "preprocess/model/flash_transformer.py",
+      "destination": "preprocessing/_vendor/sciplex3/model/flash_transformer.py",
+      "sha256": "0246e3a28de11f6578f83ebdb5612cd30c618061a1ae6497533a2ab41fcb9330",
+      "bytes": 4071,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "sciplex3",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/preprocess/data/utils.py",
+      "source_repository_relative_path": "preprocess/data/utils.py",
+      "destination": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "sha256": "af0d7da879a865ecd5dd1bb438c9f4eb177ee476741e80894816d09a638f5f7e",
+      "bytes": 10260,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "sciplex3",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/preprocess/data/tahoe.py",
+      "source_repository_relative_path": "preprocess/data/tahoe.py",
+      "destination": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "sha256": "1c757ef40e5e08fcc71771898bb2cc59c228bf4129191c5eb3a70ba342eee1bd",
+      "bytes": 24222,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "sciplex3",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/preprocess/data/ds_tahoe_se.py",
+      "source_repository_relative_path": "preprocess/data/ds_tahoe_se.py",
+      "destination": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "sha256": "8a319813152a27115fa056e74fda343e5b917116f438faa1b638d794ed51987b",
+      "bytes": 22598,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "sciplex3",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/LICENSE",
+      "source_repository_relative_path": "LICENSE",
+      "destination": "preprocessing/_vendor/sciplex3/LICENSE",
+      "sha256": "e2e5f9dd54e8cb8c79b085b1d08277891406a7582502871efd28643b6e52dc24",
+      "bytes": 1114,
+      "modified": false
+    },
+    {
+      "vendor_root": "state_encoder",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/MAP/model/se.py",
+      "source_repository_relative_path": "MAP/model/se.py",
+      "destination": "preprocessing/_vendor/state_encoder/model/se.py",
+      "sha256": "805fc10a6c7fc3ae681b2c4960135394fd032e5e620f8a206ebac4e5e8e3307c",
+      "bytes": 15264,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "state_encoder",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/MAP/model/flash_transformer.py",
+      "source_repository_relative_path": "MAP/model/flash_transformer.py",
+      "destination": "preprocessing/_vendor/state_encoder/model/flash_transformer.py",
+      "sha256": "0246e3a28de11f6578f83ebdb5612cd30c618061a1ae6497533a2ab41fcb9330",
+      "bytes": 4071,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "state_encoder",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/MAP/data/utils.py",
+      "source_repository_relative_path": "MAP/data/utils.py",
+      "destination": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "sha256": "af0d7da879a865ecd5dd1bb438c9f4eb177ee476741e80894816d09a638f5f7e",
+      "bytes": 10260,
+      "modified": false,
+      "compiled_in_memory": true
+    },
+    {
+      "vendor_root": "state_encoder",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/MAP/configs/se600m.yaml",
+      "source_repository_relative_path": "MAP/configs/se600m.yaml",
+      "destination": "preprocessing/_vendor/state_encoder/configs/se600m.yaml",
+      "sha256": "6d2e1e1efab6aa8b6e8d4ba143dd2b53854ef34fcdc5cb3c650d160fba089df5",
+      "bytes": 6856,
+      "modified": false
+    },
+    {
+      "vendor_root": "state_encoder",
+      "source_path": "/home/ma-user/work/feixuemin-workspace/MAP-main/LICENSE",
+      "source_repository_relative_path": "LICENSE",
+      "destination": "preprocessing/_vendor/state_encoder/LICENSE",
+      "sha256": "e2e5f9dd54e8cb8c79b085b1d08277891406a7582502871efd28643b6e52dc24",
+      "bytes": 1114,
+      "modified": false
+    }
+  ],
+  "imports": [
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 3,
+      "module": "__future__",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 5,
+      "module": "collections",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 7,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 8,
+      "module": "omegaconf",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 9,
+      "module": "safetensors.torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 10,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 12,
+      "module": "data.utils",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/cell_emb.py",
+      "line": 13,
+      "module": "model.se",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 1,
+      "module": "warnings",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 4,
+      "module": "math",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 5,
+      "module": "logging",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 6,
+      "module": "numpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 7,
+      "module": "pandas",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 8,
+      "module": "scanpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 9,
+      "module": "torch.nn.functional",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 10,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 11,
+      "module": "lightning",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 12,
+      "module": "sys",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 13,
+      "module": "time",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 15,
+      "module": "tqdm.auto",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 16,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 17,
+      "module": "torch.nn",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 20,
+      "module": "model.flash_transformer",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 21,
+      "module": "data.utils",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/se.py",
+      "line": 28,
+      "module": "data.tahoe",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/flash_transformer.py",
+      "line": 6,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/flash_transformer.py",
+      "line": 7,
+      "module": "torch.nn",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/model/flash_transformer.py",
+      "line": 8,
+      "module": "torch.nn.functional",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 1,
+      "module": "os",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 2,
+      "module": "pandas",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 3,
+      "module": "numpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 4,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 5,
+      "module": "logging",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 6,
+      "module": "requests",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 7,
+      "module": "time",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 9,
+      "module": "scipy.stats",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 10,
+      "module": "sklearn.metrics.pairwise",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 12,
+      "module": "pathlib",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 13,
+      "module": "uuid",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/utils.py",
+      "line": 55,
+      "module": "mygene",
+      "kind": "third_party",
+      "scope": "optional helper function only"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 1,
+      "module": "os",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 2,
+      "module": "logging",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 3,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 4,
+      "module": "datasets",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 5,
+      "module": "numpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 6,
+      "module": "torch.utils.data",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 7,
+      "module": "torch.nn.functional",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 8,
+      "module": "tqdm",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 9,
+      "module": "time",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 10,
+      "module": "json",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 11,
+      "module": "requests",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 12,
+      "module": "copy",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 14,
+      "module": "data.utils",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 16,
+      "module": "warnings",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/tahoe.py",
+      "line": 271,
+      "module": "time",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 1,
+      "module": "os",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 2,
+      "module": "json",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 3,
+      "module": "time",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 4,
+      "module": "tqdm",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 5,
+      "module": "warnings",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 8,
+      "module": "numpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 9,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 10,
+      "module": "torch.utils.data",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 11,
+      "module": "torch.nn.functional",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 12,
+      "module": "datasets",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/sciplex3/data/ds_tahoe_se.py",
+      "line": 14,
+      "module": "data.utils",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 1,
+      "module": "warnings",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 4,
+      "module": "math",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 5,
+      "module": "logging",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 6,
+      "module": "numpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 7,
+      "module": "pandas",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 8,
+      "module": "scanpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 9,
+      "module": "torch.nn.functional",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 10,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 11,
+      "module": "lightning",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 12,
+      "module": "sys",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 13,
+      "module": "time",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 15,
+      "module": "tqdm.auto",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 16,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 17,
+      "module": "torch.nn",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 23,
+      "module": "model.flash_transformer",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/se.py",
+      "line": 24,
+      "module": "data.utils",
+      "kind": "local_vendor"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/flash_transformer.py",
+      "line": 6,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/flash_transformer.py",
+      "line": 7,
+      "module": "torch.nn",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/model/flash_transformer.py",
+      "line": 8,
+      "module": "torch.nn.functional",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 1,
+      "module": "os",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 2,
+      "module": "pandas",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 3,
+      "module": "numpy",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 4,
+      "module": "torch",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 5,
+      "module": "logging",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 6,
+      "module": "requests",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 7,
+      "module": "time",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 9,
+      "module": "scipy.stats",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 10,
+      "module": "sklearn.metrics.pairwise",
+      "kind": "third_party"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 12,
+      "module": "pathlib",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 13,
+      "module": "uuid",
+      "kind": "standard_library"
+    },
+    {
+      "file": "preprocessing/_vendor/state_encoder/data/utils.py",
+      "line": 55,
+      "module": "mygene",
+      "kind": "third_party",
+      "scope": "optional helper function only"
+    }
+  ],
+  "runtime_notes": [
+    "The two roots expose distinct original top-level model and data namespaces; select one per subprocess.",
+    "Original model/se.py inherits lightning.LightningModule and retains save_hyperparameters.",
+    "Runtime source retains its original sys.path.append calls; select the vendor root before importing.",
+    "state_encoder/configs/se600m.yaml retains original placeholder and machine paths. The wrapper must override active asset paths explicitly.",
+    "SE600M is custom StateEmbeddingModel. scFoundation-style is a comment, not a package dependency.",
+    "Flash attention uses torch.nn.functional.scaled_dot_product_attention; no external flash-attn import.",
+    "mygene is imported lazily inside an annotation helper; cache loading from supplied symbols does not call it."
+  ],
+  "verification": {
+    "byte_identity": true,
+    "compile": "in-memory only; no pyc or test file generated",
+    "python": "3.9.11 (main, Mar 29 2022, 19:08:29) \n[GCC 7.5.0]",
+    "model_instantiated": false,
+    "raw_pipeline_executed": false,
+    "environment_installed_or_modified": false
+  },
+  "third_party_import_roots": [
+    "datasets",
+    "lightning",
+    "mygene",
+    "numpy",
+    "omegaconf",
+    "pandas",
+    "requests",
+    "safetensors",
+    "scanpy",
+    "scipy",
+    "sklearn",
+    "torch",
+    "tqdm"
+  ],
+  "license": {
+    "name": "MIT",
+    "source": "/home/ma-user/work/feixuemin-workspace/MAP-main/LICENSE",
+    "copyright": "Copyright (c) 2026 MAGIC: Medical Artificial General Intelligence Consortium",
+    "scope": "Selected source files only. Data and weights have separate redistribution terms."
+  }
+}

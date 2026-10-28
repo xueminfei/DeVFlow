@@ -1,0 +1,17 @@
+{
+  "protocol": "norman19_strict_holdout12_shared_eightrepeat128_v1",
+  "task": "norman19",
+  "seeds": [4243, 4244, 4245, 4246, 4247, 4248, 4249, 4250],
+  "condition_count": 49,
+  "cells_per_condition": 128,
+  "n_genes": 2051,
+  "de50_size": 50,
+  "distance_backend_hvg": "scipy_float64",
+  "response_profile": "sampled",
+  "heldout_genes": ["BPGM", "CBL", "FOSB", "IKZF3", "MAP2K3", "PTPN12", "PTPN9", "S1PR2", "SAMD1", "SGK1", "SLC38A2", "ZBTB1"],
+  "training": "89 single-gene and 88 double-gene conditions; exclude every condition containing a held-out gene",
+  "external_test": "12 single, 25 one-unseen pairs, 12 two-unseen pairs; report categories separately",
+  "delta_pert_reference": "Equal average of the 177 training-condition means",
+  "split_origin": "Fixed metadata-balanced custom split, not the official scDFM split; no training has been reproduced by this protocol config",
+  "aggregation": "Equal condition macro-mean per seed; mean and sample SD across eight seeds"
+}

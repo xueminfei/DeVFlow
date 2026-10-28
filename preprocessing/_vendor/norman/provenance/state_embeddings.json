@@ -1,0 +1,213 @@
+{
+  "amp_dtype": "bf16",
+  "cell_order": "h5ad/obs/_index",
+  "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+  "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+  "complete": true,
+  "dtype": "float32",
+  "finite": true,
+  "format_version": 2,
+  "h5ad_sha256": "20a67e0e9e1059b631f3d3fe56a78b5856c1609339ded37cf20f2d49af1b87d7",
+  "n_cells": 84986,
+  "norm_max": 1.0000001192092896,
+  "norm_min": 0.9999998807907104,
+  "shape": [
+    84986,
+    2048
+  ],
+  "shards": [
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:0",
+      "dtype": "float32",
+      "first_row": 0,
+      "format_version": 2,
+      "last_row": 10623,
+      "n_cells": 84986,
+      "seconds": 391.8450071811676,
+      "seed": 42,
+      "shape": [
+        10623,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    },
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:1",
+      "dtype": "float32",
+      "first_row": 10623,
+      "format_version": 2,
+      "last_row": 21246,
+      "n_cells": 84986,
+      "seconds": 392.280775308609,
+      "seed": 42,
+      "shape": [
+        10623,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    },
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:2",
+      "dtype": "float32",
+      "first_row": 21246,
+      "format_version": 2,
+      "last_row": 31869,
+      "n_cells": 84986,
+      "seconds": 392.0249180793762,
+      "seed": 42,
+      "shape": [
+        10623,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    },
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:3",
+      "dtype": "float32",
+      "first_row": 31869,
+      "format_version": 2,
+      "last_row": 42493,
+      "n_cells": 84986,
+      "seconds": 392.41121006011963,
+      "seed": 42,
+      "shape": [
+        10624,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    },
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:4",
+      "dtype": "float32",
+      "first_row": 42493,
+      "format_version": 2,
+      "last_row": 53116,
+      "n_cells": 84986,
+      "seconds": 392.8725905418396,
+      "seed": 42,
+      "shape": [
+        10623,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    },
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:5",
+      "dtype": "float32",
+      "first_row": 53116,
+      "format_version": 2,
+      "last_row": 63739,
+      "n_cells": 84986,
+      "seconds": 392.48532605171204,
+      "seed": 42,
+      "shape": [
+        10623,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    },
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:6",
+      "dtype": "float32",
+      "first_row": 63739,
+      "format_version": 2,
+      "last_row": 74362,
+      "n_cells": 84986,
+      "seconds": 392.2266728878021,
+      "seed": 42,
+      "shape": [
+        10623,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    },
+    {
+      "amp_dtype": "bf16",
+      "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+      "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/benchmark/state_setup/official_se600m/se600m_epoch4_lossless.ckpt",
+      "checkpoint_sha256": "f462872681974de8e03dd22a3d4dd5199495622a54b2199d1a34cd245589ff20",
+      "complete": true,
+      "device": "cuda:7",
+      "dtype": "float32",
+      "first_row": 74362,
+      "format_version": 2,
+      "last_row": 84986,
+      "n_cells": 84986,
+      "seconds": 392.7350480556488,
+      "seed": 42,
+      "shape": [
+        10624,
+        2048
+      ],
+      "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+      "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717"
+    }
+  ],
+  "state_sha256": "483377fa11f6ce50c116b791c8efa697d957ef7bb19045f7b29c1d79791e1c43",
+  "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+  "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717",
+  "tokenization": {
+    "cell_order": "h5ad/obs/_index",
+    "cell_order_sha256": "29165b5d45487c2db7023262b01e3780d1c4077db398e94ceecf0de729dafe41",
+    "complete": true,
+    "counts_source": "h5ad/X log1p-normalized; expm1 is an inversion to normalized linear values, not raw UMI counts",
+    "esm_embeddings": "/home/ma-user/work/feixuemin-workspace/MAP-main/pretrained/Homo_sapiens.GRCh38.gene_symbol_to_embedding_ESM2.pt",
+    "esm_embeddings_sha256": "a210e1cc7901513999b2bca3836ba9e2f203cd008be4e9a9d6412a2267de9748",
+    "esm_gene_order_sha256": "b5790a0a1227e8d8bcccf8cae108c422ec4b19d24747f5d03e4afdc6f6e9035e",
+    "format_version": 2,
+    "h5ad": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_scdfm_figshare_20261016/norman.h5ad",
+    "h5ad_sha256": "20a67e0e9e1059b631f3d3fe56a78b5856c1609339ded37cf20f2d49af1b87d7",
+    "n_cells": 84986,
+    "n_embedding_tokens": 19790,
+    "n_mapped_source_genes": 19045,
+    "n_source_genes": 19264,
+    "pad_length": 2048,
+    "seconds": 58.38540601730347,
+    "seed": 42,
+    "token_counts_sha256": "517f7d3ceb88ab6e6c0f9f70015a2d3b29d348844b4710dfce89a5063a0621d0",
+    "token_ids_sha256": "1f27e5a98d7891f124d5f4a315cb070bab003bf0fec92ff30354d4f3bf7af717",
+    "transform": "100 * log1p(expm1(X_log1p_normalized)) / sum(log1p(expm1(X_log1p_normalized))); top2047 + CLS"
+  }
+}

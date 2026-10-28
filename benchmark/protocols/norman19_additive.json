@@ -1,0 +1,21 @@
+{
+  "protocol": "norman19_additive_fold0_shared_fourrepeat128_v1",
+  "task": "norman19",
+  "seeds": [
+    4243,
+    4244,
+    4245,
+    4246
+  ],
+  "condition_count": 37,
+  "cells_per_condition": 128,
+  "n_genes": 2054,
+  "de50_size": 50,
+  "distance_backend_hvg": "norman_historical",
+  "response_profile": "sampled",
+  "training": "101 single-gene and 88 double-gene conditions; both component singles observed for every test pair",
+  "external_test": "Fold 0: 37 unseen double-gene combinations",
+  "distribution_definition": "Original FP32 pooled-lower-median core MMD; FP64 profiles; additional EMD/direct Euclidean energy are separately explicit diagnostics",
+  "historical_comparability": "Reproduces original pooled MMD and FP64 point formulas; later treated-only MMD tables require the corresponding separately identified protocol",
+  "aggregation": "Equal condition macro-mean per seed; mean and sample SD across four seeds"
+}
