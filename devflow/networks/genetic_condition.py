@@ -62,12 +62,19 @@ class FrozenMAPGeneProjector(nn.Module):
     must choose the mode explicitly rather than silently conflating them.
     """
 
-    def __init__(self, checkpoint_path: str | Path, projector_kind: str = "map_predictor"):
+    def __init__(
+        self,
+        checkpoint_path: str | Path,
+        projector_kind: str = "map_predictor",
+        *,
+        trainable_last_layer: bool = False,
+    ):
         super().__init__()
         kind = str(projector_kind)
         if kind not in {"mapkg", "map_predictor"}:
             raise ValueError("projector_kind must be mapkg or map_predictor")
         self.projector_kind = kind
+        self.trainable_last_layer = bool(trainable_last_layer)
         self.input_dim = ESM2_GENE_DIM if kind == "mapkg" else MAP_GENE_INPUT_DIM
         self.requires_se_token = kind == "map_predictor"
         hidden_dim = 1536 if kind == "mapkg" else 2048
@@ -101,7 +108,14 @@ class FrozenMAPGeneProjector(nn.Module):
                 raise KeyError(f"checkpoint is missing {missing_label}.{key}")
             loaded[key] = state[source_key]
         self.projector.load_state_dict(loaded, strict=True)
+        # The MAP projector is a transferred feature map. Norman's main
+        # recipe optionally adapts only its final 1024-dimensional projection
+        # layer; the residual path, gate, hidden layer and normalization stay
+        # frozen. Keeping this policy here makes the trainable parameter
+        # topology explicit and checkpoint-compatible.
         self.projector.requires_grad_(False)
+        if self.trainable_last_layer:
+            self.projector.mlp[-1].requires_grad_(True)
         self.projector.eval()
 
     def train(self, mode: bool = True):
@@ -112,7 +126,6 @@ class FrozenMAPGeneProjector(nn.Module):
         self.projector.eval()
         return self
 
-    @torch.no_grad()
     def forward_background(
         self,
         se_tokens: Optional[torch.Tensor],
@@ -290,7 +303,17 @@ class GenePerturbationEncoder(nn.Module):
         background_gene_esm: Optional[torch.Tensor],
         background_projected: Optional[torch.Tensor],
     ) -> torch.Tensor:
-        if background_projected is not None:
+        # When the projector output layer is trainable, raw tokens must be
+        # used even if a cached projection is present; otherwise the new
+        # parameters would receive no gradient. Cached projections remain the
+        # fast frozen compatibility path.
+        use_raw_projector = (
+            self.map_projector is not None
+            and getattr(self.map_projector, "trainable_last_layer", False)
+            and background_se_tokens is not None
+            and background_gene_esm is not None
+        )
+        if background_projected is not None and not use_raw_projector:
             if background_projected.ndim != 3 or background_projected.size(-1) != self.dim:
                 raise ValueError(f"background_projected must be [B,G,{self.dim}]")
             return background_projected
@@ -298,10 +321,7 @@ class GenePerturbationEncoder(nn.Module):
             raise ValueError(
                 "provide background_projected or map_projector + background_se_tokens + background_gene_esm"
             )
-        with torch.no_grad():
-            return self.map_projector.forward_background(
-                background_se_tokens, background_gene_esm
-            )
+        return self.map_projector.forward_background(background_se_tokens, background_gene_esm)
 
     def forward(
         self,

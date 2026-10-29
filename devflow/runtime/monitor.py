@@ -105,8 +105,11 @@ def load_run(root):
             try:
                 frame = pd.read_csv(path)
                 if not frame.empty:
-                    if "optimizer_step" not in frame and "update" in frame:
-                        frame["optimizer_step"] = frame["update"]
+                    if "optimizer_step" not in frame:
+                        if "update" in frame:
+                            frame["optimizer_step"] = frame["update"]
+                        elif "step" in frame:
+                            frame["optimizer_step"] = frame["step"]
                     frame["source_run"] = str(stage)
                     frames.append(frame)
             except (pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
@@ -260,7 +263,7 @@ def render(root, *, display=False):
     active = Path(config["monitor_active_run"])
     is_mean = _is_mean_family(config)
     task = config.get("task", "sciplex3")
-    title = {"combosciplex": "ComboSciPlex", "sciplex3": "SciPlex3", "norman": "Norman19"}.get(task, str(task))
+    title = {"combosciplex": "ComboSciPlex", "sciplex3": "SciPlex3", "norman": "Norman19", "norman19": "Norman19"}.get(task, str(task))
     title += " mean / Flow / decoder" if is_mean else " attention"
     curves = root / "curves"
     curves.mkdir(parents=True, exist_ok=True)
