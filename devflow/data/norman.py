@@ -323,3 +323,283 @@ def read_expression_rows(h5ad: Path, rows: Sequence[int], hvg_indices: np.ndarra
             valid = (pos < len(hvg_indices)) & (hvg_indices[np.minimum(pos, len(hvg_indices) - 1)] == cols)
             output[out, pos[valid]] = values[valid]
     return output
+
+
+def paired_gene_features(condition_names, feature_assets):
+    """Build two exchangeable gene slots; absent singleton slots stay zero.
+
+    Gene priors are fixed before training. They are not the condition vectors
+    that Flow's trainable interaction encoder produces.
+    """
+    names = [str(name) for name in feature_assets["gene_names"]]
+    lookup = {name: index for index, name in enumerate(names)}
+    if len(lookup) != len(names):
+        raise ValueError("Fixed gene feature names must be unique")
+    first = np.asarray(feature_assets["primary"], dtype=np.float64)
+    second = np.asarray(feature_assets["secondary"], dtype=np.float64)
+    if (first.ndim != 2 or second.ndim != 2 or len(first) != len(names)
+            or len(second) != len(names) or not np.isfinite(first).all()
+            or not np.isfinite(second).all()):
+        raise ValueError("Fixed gene features must be finite [genes, features] matrices")
+    primary = np.zeros((len(condition_names), 2, first.shape[1]), dtype=np.float64)
+    secondary = np.zeros((len(condition_names), 2, second.shape[1]), dtype=np.float64)
+    present = np.zeros((len(condition_names), 2), dtype=bool)
+    for row, condition in enumerate(condition_names):
+        for slot, gene in enumerate(sorted(parse_target_genes(condition))):
+            if gene not in lookup:
+                raise ValueError(f"Missing fixed gene prior: {gene}")
+            primary[row, slot] = first[lookup[gene]]
+            secondary[row, slot] = second[lookup[gene]]
+            present[row, slot] = True
+    return primary, secondary, present
+
+
+def select_gene_mean_kernel(primary, secondary, present, deltas, condition_names,
+                            settings=None, progress=None):
+    """Select the fixed kernel using only held-out *training* double conditions.
+
+    Each fold retains all singles. Scalers, distance scales, centering and the
+    intercept are refitted from that fold's anchors. Analytical KRR fits are
+    used for selection, never as the learned head's initial coefficients.
+    """
+    from scipy.linalg import eigh
+    from devflow.mean.kernels import ContinuousPairKernelBank
+
+    options = dict(settings or {})
+    folds = int(options.get("cv_folds", 8))
+    seed = int(options.get("cv_seed", 42))
+    grid = {
+        "primary_mix": sorted(set(float(x) for x in options.get(
+            "primary_mix_grid", [0.0, 0.25, 0.5, 0.75, 1.0]))),
+        "gamma_factor": sorted(set(float(x) for x in options.get(
+            "gamma_factor_grid", [0.125, 0.25, 0.5, 1.0, 2.0, 4.0]))),
+        "alpha": sorted(set(float(x) for x in options.get(
+            "alpha_grid", [1e-5, 3e-5, 1e-4, 3e-4, 0.001, 0.003, 0.01, 0.1, 1.0, 10.0]))),
+    }
+    if (folds != 8 or any(not values for values in grid.values())
+            or any(not np.isfinite(x) or not 0 <= x <= 1 for x in grid["primary_mix"])
+            or any(not np.isfinite(x) or x <= 0 for key in ("gamma_factor", "alpha") for x in grid[key])):
+        raise ValueError("Expected eight folds and a finite, valid continuous-kernel grid")
+    names = list(map(str, condition_names))
+    doubles = np.asarray([i for i, name in enumerate(names) if len(parse_target_genes(name)) == 2], dtype=np.int64)
+    singles = np.asarray([i for i, name in enumerate(names) if len(parse_target_genes(name)) == 1], dtype=np.int64)
+    if len(names) != 189 or len(singles) != 101 or len(doubles) != 88:
+        raise ValueError("Norman additive mean selection requires 101 singles and 88 training doubles")
+    deltas = np.asarray(deltas, dtype=np.float64)
+    if deltas.shape != (189, 2054) or not np.isfinite(deltas).all():
+        raise ValueError("Training delta labels must have shape [189,2054] and be finite")
+    specs = [{"primary_mix": mix, "gamma_factor": factor}
+             for mix in grid["primary_mix"] for factor in grid["gamma_factor"]]
+    candidates = [{**spec, "alpha": alpha} for spec in specs for alpha in grid["alpha"]]
+    scores = np.empty((len(candidates), folds), dtype=np.float64)
+    held_out = [np.sort(part) for part in np.array_split(np.random.default_rng(seed).permutation(doubles), folds)]
+    for fold, held in enumerate(held_out):
+        keep = np.setdiff1d(np.arange(len(names), dtype=np.int64), held)
+        if not set(singles) <= set(keep) or len(keep) != 178 or len(held) != 11:
+            raise AssertionError("Every CV fold must retain all singles and hold eleven doubles")
+        bias = deltas[keep].mean(axis=0)
+        centered_labels = deltas[keep] - bias
+        bank = ContinuousPairKernelBank.fit(primary[keep], secondary[keep], present[keep], specs)
+        candidate = 0
+        for stratum in range(len(specs)):
+            kernel = bank.train_kernels[stratum]
+            values, vectors = eigh(kernel, check_finite=False)
+            if values[0] < -1e-7:
+                raise ValueError("The fixed training kernel is not positive semidefinite")
+            query = bank.query(primary[held], secondary[held], present[held], stratum)
+            projected_query = query @ vectors
+            for alpha in grid["alpha"]:
+                # Solve against eleven query rows, not 2054 target columns.
+                weights = (projected_query / (values + alpha)[None, :]) @ vectors.T
+                prediction = weights @ centered_labels + bias
+                scores[candidate, fold] = np.square(prediction - deltas[held]).mean()
+                if not np.isfinite(scores[candidate, fold]):
+                    raise FloatingPointError(f"Nonfinite training CV score at fold {fold + 1}, candidate {candidate}")
+                candidate += 1
+        if progress is not None:
+            progress({"stage": "kernel_cross_validation", "fold": fold + 1,
+                      "folds": folds, "train_conditions": len(keep),
+                      "held_conditions": [names[i] for i in held],
+                      "best_running_mean_delta_mse": float(scores[:, :fold + 1].mean(axis=1).min())})
+    means = scores.mean(axis=1)
+    chosen = min(range(len(candidates)), key=lambda index: (float(means[index]), index))
+    report = {
+        "method": "eight_fold_training_double_condition_holdout", "seed": seed,
+        "folds": folds, "singles_retained_per_fold": 101,
+        "training_anchors_per_fold": 178, "held_doubles_per_fold": 11,
+        "fold_conditions": [[names[i] for i in held] for held in held_out],
+        "score": "equal-fold mean squared delta error across all 2054 genes",
+        "scalers_bandwidths_centering_and_bias": "refitted_on_training_anchors_inside_each_fold",
+        "external_test_used": False, "grid": grid,
+        "n_candidates": len(candidates),
+        "candidates": [{**candidate, "mean_delta_mse": float(means[i]),
+                        "fold_delta_mse": scores[i].tolist()} for i, candidate in enumerate(candidates)],
+        "selected": candidates[chosen], "selected_mean_delta_mse": float(means[chosen]),
+        "tie_break": "first candidate in ascending primary_mix, gamma_factor, alpha order",
+        "analytical_fits": "CV selection and training-only reference; never A initialization",
+    }
+    return dict(candidates[chosen]), report
+
+
+def prepare_kernel_mean_assets(data, settings=None, progress=None):
+    """Build Norman's fixed gene kernel and mean labels from training rows only.
+
+    ``data`` is the validated mapping returned by runtime.norman.load_inputs.
+    This function does not access test expression, references or DEG weights.
+    The caller creates TrainableKernelMeanHead from the returned assets, which
+    starts A at zero just as the chemical mean-head recipes do.
+    """
+    import hashlib
+    import torch
+    from devflow.io import gene_order_hash, sha256_file
+    from devflow.mean.kernels import ContinuousPairKernelBank
+    from devflow.networks.genetic_condition import FrozenMAPGeneProjector
+
+    options = dict(settings or {})
+    paths = data["paths"]
+    records = data["dataset"].records
+    names = [str(record["condition"]) for record in records]
+    if len(names) != 189 or len(data["genes"]) != 2054:
+        raise ValueError("Expected the original Norman additive 189-condition, 2054-gene training axes")
+    train_set = set(data["split"]["train_conditions"])
+    if len(train_set) != 189 or set(names) != train_set:
+        raise ValueError("Mean labels must cover precisely the declared training conditions")
+    if train_set.intersection(data["split"]["test_conditions"]):
+        raise ValueError("Training and external conditions overlap")
+    ordered_genes = [gene for gene, _ in sorted(data["target_lookup"].items(), key=lambda item: item[1])]
+    secondary = data["target_esm"].detach().cpu().float()
+    target_path = paths.get("target_se_assets")
+    if not target_path:
+        raise ValueError("Norman kernel means require data.target_se_assets; prepare the training-control target gene tokens first")
+    target_cache = torch.load(str(target_path), map_location="cpu", weights_only=False)
+    target_metadata = target_cache.get("metadata", {})
+    if target_metadata.get("complete") is not True:
+        raise ValueError("Target SE cache is incomplete")
+    for key in ("esm_checkpoint_sha256", "se_checkpoint_sha256"):
+        expected = data.get("asset_metadata", {}).get(key)
+        if not expected or target_metadata.get(key) != expected:
+            raise ValueError("Target SE cache uses a different frozen prior: " + key)
+    for key in ("h5ad", "split_manifest", "control_split"):
+        if target_metadata.get(key + "_sha256") != sha256_file(paths[key]):
+            raise ValueError("Target SE cache was built from a different " + key)
+    controls = np.asarray(data["train_controls"], dtype=np.int64)
+    if (target_metadata.get("train_control_rows") != controls.tolist()
+            or target_metadata.get("train_control_rows_sha256") != gene_order_hash(controls)):
+        raise ValueError("Target SE cache training controls differ")
+    cache_names = list(map(str, target_cache["target_genes"]))
+    if len(cache_names) != len(set(cache_names)) or set(cache_names) != set(ordered_genes):
+        raise ValueError("Target SE cache must cover precisely the declared target genes")
+    cache_lookup = {gene: index for index, gene in enumerate(cache_names)}
+    cache_order = torch.as_tensor([cache_lookup[gene] for gene in ordered_genes])
+    se_tokens = torch.as_tensor(target_cache["target_se_tokens"], dtype=torch.float32)
+    cache_esm = torch.as_tensor(target_cache["target_esm"], dtype=torch.float32)
+    if se_tokens.shape != (len(cache_names), 2048) or cache_esm.shape != (len(cache_names), 5120):
+        raise ValueError("Target SE cache feature dimensions differ")
+    se_tokens, cache_esm = se_tokens[cache_order], cache_esm[cache_order]
+    if not torch.isfinite(se_tokens).all() or not torch.equal(cache_esm, secondary):
+        raise ValueError("Target SE cache contains invalid tokens or a different ESM2 gene mapping")
+    with torch.random.fork_rng(devices=[]):
+        projector = FrozenMAPGeneProjector(paths["projector_checkpoint"], trainable_last_layer=False).eval()
+    with torch.inference_mode():
+        primary = projector.forward_target(
+            secondary[None], target_se_token=se_tokens[None])[0].float().numpy().copy()
+    features = {
+        "gene_names": np.asarray(ordered_genes, dtype=str),
+        "primary": primary, "secondary": secondary.numpy().copy(),
+        "primary_description": "original_pretrained_MAP_predictor_with_fixed_training_control_SE_gene_token_and_ESM2",
+        "secondary_description": "fixed_ESM2_5120dim_target_gene_vectors",
+        "independent_biological_modalities": False,
+        "target_se_tokens": se_tokens.numpy().copy(),
+    }
+    primary_pairs, secondary_pairs, presence = paired_gene_features(names, features)
+    if progress is not None:
+        progress({"stage": "fixed_gene_features", "genes": len(ordered_genes),
+                  "primary_dim": int(primary.shape[1]), "secondary_dim": int(secondary.shape[1])})
+
+    def expression_mean(rows):
+        rows = np.asarray(rows, dtype=np.int64)
+        if len(rows) == 0:
+            raise ValueError("A training expression mean requires at least one row")
+        total = np.zeros(len(data["genes"]), dtype=np.float64)
+        for start in range(0, len(rows), 512):
+            values = read_expression_rows(Path(paths["h5ad"]), rows[start:start + 512], data["indices"])
+            total += values.sum(axis=0, dtype=np.float64)
+        return total / len(rows)
+
+    if not data["control"][controls].all() or np.intersect1d(controls, data["test_controls"]).size:
+        raise ValueError("Only the disjoint training control pool may define mean deltas")
+    control_mean = expression_mean(controls)
+    deltas = []
+    for index, record in enumerate(records):
+        rows = np.asarray(record["treated_rows"], dtype=np.int64)
+        if not np.all(data["conditions"][rows] == record["condition"]) or data["control"][rows].any():
+            raise ValueError("Mean target rows do not belong to the declared training condition")
+        deltas.append(expression_mean(rows) - control_mean)
+        if progress is not None and (index + 1) % 25 == 0:
+            progress({"stage": "training_mean_labels", "completed_conditions": index + 1,
+                      "conditions": len(records)})
+    deltas = np.stack(deltas)
+    if progress is not None:
+        progress({"stage": "training_mean_labels", "conditions": len(names),
+                  "expression_dim": len(data["genes"]), "external_expression_used": False})
+    selected, report = select_gene_mean_kernel(
+        primary_pairs, secondary_pairs, presence, deltas, names, options, progress)
+    spec = {key: selected[key] for key in ("primary_mix", "gamma_factor")}
+    bank = ContinuousPairKernelBank.fit(primary_pairs, secondary_pairs, presence, [spec])
+    train_rows = np.flatnonzero(np.isin(data["conditions"], data["split"]["train_conditions"]) & ~data["control"])
+    binding = {
+        "split_manifest_sha256": sha256_file(paths["split_manifest"]),
+        "control_split_sha256": sha256_file(paths["control_split"]),
+        "gene_order_sha256": gene_order_hash(data["genes"]),
+        "train_treated_rows_sha256": gene_order_hash(train_rows),
+    }
+
+    def array_hash(value):
+        value = np.ascontiguousarray(value)
+        digest = hashlib.sha256()
+        digest.update(str(value.dtype).encode())
+        digest.update(str(value.shape).encode())
+        digest.update(value.tobytes())
+        return digest.hexdigest()
+
+    identity_keys = ("h5ad", "split_manifest", "control_split", "gene_indices", "genes",
+                     "gene_condition_assets", "projector_checkpoint", "hvg_provenance", "target_se_assets")
+    identities = {}
+    for key in identity_keys:
+        if paths.get(key):
+            if progress is not None:
+                progress({"stage": "input_identity", "input": key})
+            identities[key] = {"path": str(Path(paths[key]).resolve()), "sha256": sha256_file(paths[key])}
+    metadata = {
+        "schema": "norman_fixed_gene_kernel_mean_assets_v2", "task": "norman19",
+        "kernel": "permutation_averaged_pair_projector_RBF_ESM2_RBF",
+        "pair_permutation_invariant": True, "conditions": names,
+        "strata": ["K562"], "training_binding": binding,
+        "training_control_rows_sha256": gene_order_hash(controls),
+        "training_only_statistics": True, "external_expression_used_for_fitting": False,
+        "mean_accumulation": "FP64 full-condition means of existing FP32 pre-normalized expression",
+        "selected_hyperparameters": selected, "input_identities": identities,
+        "fixed_zero_target_role": False, "fixed_projector": True,
+        "target_se_context": "training_control_pool_mean; all targets retained in a single SE forward",
+        "target_se_metadata": target_metadata,
+        "initial_coefficients": "fresh_zero_A; analytical_CV_coefficients_not_loaded",
+        "array_sha256": {
+            "target_gene_order": gene_order_hash(ordered_genes),
+            "primary_gene_features": array_hash(primary),
+            "secondary_gene_features": array_hash(features["secondary"]),
+            "target_se_tokens": array_hash(features["target_se_tokens"]),
+            "training_deltas": array_hash(deltas), "training_control_mean": array_hash(control_mean),
+        },
+    }
+    features["metadata"] = {
+        "input_identities": {key: identities[key] for key in ("gene_condition_assets", "projector_checkpoint", "target_se_assets")},
+        "array_sha256": {key: metadata["array_sha256"][key] for key in (
+            "target_gene_order", "primary_gene_features", "secondary_gene_features", "target_se_tokens")},
+    }
+    assets = {
+        "kernel": bank.train_kernels.copy(), "targets": deltas[None].copy(),
+        "bias": deltas.mean(axis=0)[None], "control_mean": control_mean[None],
+        "alpha": np.asarray([selected["alpha"]], dtype=np.float64),
+        "kernelbank_assets": bank.to_assets(), "metadata": metadata,
+    }
+    return assets, report, features

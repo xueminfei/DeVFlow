@@ -105,8 +105,11 @@ def load_run(root):
             try:
                 frame = pd.read_csv(path)
                 if not frame.empty:
-                    if "optimizer_step" not in frame and "update" in frame:
-                        frame["optimizer_step"] = frame["update"]
+                    if "optimizer_step" not in frame:
+                        if "update" in frame:
+                            frame["optimizer_step"] = frame["update"]
+                        elif "step" in frame:
+                            frame["optimizer_step"] = frame["step"]
                     frame["source_run"] = str(stage)
                     frames.append(frame)
             except (pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
@@ -258,10 +261,11 @@ def render(root, *, display=False):
     root = Path(root).resolve()
     config, status, train, evaluation, warnings = load_run(root)
     active = Path(config["monitor_active_run"])
-    is_mean = _is_mean_family(config)
+    head_only = config.get("run_mode") == "mean_head_only"
+    is_mean = _is_mean_family(config) or head_only
     task = config.get("task", "sciplex3")
-    title = {"combosciplex": "ComboSciPlex", "sciplex3": "SciPlex3", "norman": "Norman19"}.get(task, str(task))
-    title += " mean / Flow / decoder" if is_mean else " attention"
+    title = {"combosciplex": "ComboSciPlex", "sciplex3": "SciPlex3", "norman": "Norman19", "norman19": "Norman19"}.get(task, str(task))
+    title += ": kernel mean head only" if head_only else (" mean / Flow / decoder" if is_mean else " attention")
     curves = root / "curves"
     curves.mkdir(parents=True, exist_ok=True)
     step_key = "optimizer_step" if "optimizer_step" in train else "update"
@@ -306,7 +310,7 @@ def render(root, *, display=False):
         condition_passes=passes, train_condition_count=group_count,
         conditions_per_optimizer_update=conditions_per_update,
         condition_pass_definition="optimizer_step * conditions_per_update / train_conditions; not a cell epoch",
-        online_seed=online_seed, formal_sampling_seeds=final_seeds,
+        online_seed=None if head_only else online_seed, formal_sampling_seeds=final_seeds,
         latest_mean_diagnostic_step=int(mean["update"].max()) if not mean.empty else None,
         latest_full_evaluation_step=int(full["update"].max()) if not full.empty else None,
         selection_scope=config.get("selection", {}).get("protocol", "external_test_exploratory"),
@@ -318,19 +322,27 @@ def render(root, *, display=False):
         "Run All reloads CSV/JSON files. This monitor never executes the model or changes training state.",
         f"Condition passes use {group_count} training conditions and {conditions_per_update} conditions per optimizer update; they are not cell epochs.",
         "Continuation stages are joined by optimizer step. Later stages replace duplicated records; source logs remain unchanged.",
-        f"Online seed: {online_seed}. Formal sampling seeds: {', '.join(map(str, final_seeds))}. Benchmark values remain separate from online curves.",
+        (f"Formal sampling seeds: {', '.join(map(str, final_seeds))}. External mean comparisons run after training has stopped."
+         if head_only else f"Online seed: {online_seed}. Formal sampling seeds: {', '.join(map(str, final_seeds))}. Benchmark values remain separate from online curves."),
         "Each branch keeps the same colour across refreshes. Scientific settings, seeds and splits remain distinct; source hashes remain in the table.",
-        "Mean diagnostics omit distribution metrics. Negative unbiased MMD estimates are retained.",
-        "Training ot_* convergence is separate from formal 128-cell OT/EMD.",
+        ("MMD, EMD and Energy distance are not computed in this mean-head-only experiment."
+         if head_only else "Mean diagnostics omit distribution metrics. Negative unbiased MMD estimates are retained."),
+        *([] if head_only else ["Training ot_* convergence is separate from formal 128-cell OT/EMD."]),
         "Sampling-repeat SD describes one fixed model and does not measure independent retraining uncertainty.",
     ]
-    if is_mean:
+    if head_only:
+        notes += ["Only the kernel mean-head coefficients are trained; Flow and decoder training are absent.",
+            "Stopping uses the recorded training-convergence rule and maximum update budget, not external-test metrics.",
+            "Purple: mean head. The reported uncertainty comes from repeated reference-cell sampling."]
+    elif is_mean:
         notes += ["Purple: mean head. Orange: raw decoder. Blue: final scaled output.",
             "Full evaluations retain their native condition counts and use 128 cells, FP32 / TF32 off / classical RK4-80.",
-            "External-test checkpoint selection is exploratory; one checkpoint supplies the final reported row."]
+            ("The final checkpoint is fixed in advance; external-test curves monitor progress and do not select the checkpoint."
+             if config.get("selection", {}).get("protocol") == "fixed_final_update"
+             else "External-test checkpoint selection is exploratory; one checkpoint supplies the final reported row.")]
     else:
         notes.append("Historical attention curves retain their recorded precision, RK4 points and chunk settings; they are not relabelled as the formal benchmark.")
-    if task == "combosciplex":
+    if task == "combosciplex" and not head_only:
         notes += ["Pseudobulk targets are full treated-condition means. Distribution metrics use locked 128-cell target draws.",
             "Training MMD uses real training treated-cell bandwidth; formal Combo MMD retains its historical pooled-bandwidth scorer."]
     splits = set(evaluation["split"]) if not evaluation.empty else set()
@@ -339,7 +351,8 @@ def render(root, *, display=False):
             notes.append(split + ": unavailable; no curve is invented.")
     notes.extend(warnings)
     missing = [name for name in HVG_METRICS if full.empty or name not in full or full[name].isna().all()]
-    notes.append("Unavailable online HVG metrics: " + (", ".join(missing) if missing else "none"))
+    if not head_only:
+        notes.append("Unavailable online HVG metrics: " + (", ".join(missing) if missing else "none"))
     selected = _json(active / "SELECTED_CHECKPOINT.json", _json(active / "checkpoint_candidates.json",
         _json(root / "SELECTED_CHECKPOINT.json", _json(root / "checkpoint_candidates.json", {}))))
     table = evaluation.to_html(index=False, escape=True) if not evaluation.empty else "<p>No completed evaluation yet.</p>"

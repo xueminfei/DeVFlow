@@ -47,10 +47,10 @@ Choose a configuration and fill in the required input paths:
 | --- | --- |
 | SciPlex3 | [MLP + trainable mean + MMD, 50k steps](configs/sciplex3_mlp_mean_mmd_50k.json) |
 | ComboSciPlex | [MLP + trainable mean + MMD, 13k steps](configs/combosciplex_mlp_mean_mmd_13k.json) |
-| Norman | [Additive split](configs/norman_additive.json) |
+| Norman | [Additive split + trainable mean + MMD, 50k steps](configs/norman_additive.json) |
 
-SciPlex3 and ComboSciPlex support the trainable mean/MMD recipe. Norman uses
-its existing dataset-specific recipe. The historical Combo recipe remains in
+SciPlex3, ComboSciPlex and Norman use the trainable mean/MMD recipe. Norman uses a fixed gene-prior kernel mean head and a 2,054-gene axis: the union of 2,000 training HVGs and perturbation target
+genes. Set `data.target_se_assets` to the prepared training-control target gene tokens. The historical Combo recipe remains in
 `configs/combosciplex.json`.
 
 For SciPlex3, prepare the assets and start training on eight GPUs:

@@ -269,3 +269,175 @@ class MixedKernelBank:
             np.asarray(assets["training_column_means"], dtype=np.float64),
             np.asarray(assets["training_grand_means"], dtype=np.float64),
             pair_permutation_invariant=bool(pair_permutation_invariant), pair_aggregation=aggregation)
+]633;E;printf '\\n@dataclass\\n';03aaa33e-8385-4175-a1d2-38493c97f47c]633;C
+@dataclass
+class ContinuousPairKernelBank:
+    """Fixed, centred mixture of two continuous pair representations.
+
+    Both feature arrays have shape ``[conditions, 2, feature_dim]``. Presence
+    masks distinguish a missing second component from an actual zero vector.
+    A shared transform is fitted to present training slots only, then missing
+    slots are set to zero. Averaging aligned and exchanged RBF kernels makes
+    the pair kernel permutation invariant and positive semidefinite.
+
+    ``primary_mix`` and ``gamma_factor`` are fixed hyperparameters. Each
+    representation has its own training-only median distance; gamma_factor
+    multiplies the inverse of that median for both representations.
+    """
+
+    primary_mean: np.ndarray
+    primary_std: np.ndarray
+    secondary_mean: np.ndarray
+    secondary_std: np.ndarray
+    primary_train: np.ndarray
+    secondary_train: np.ndarray
+    training_presence: np.ndarray
+    specs: list[dict]
+    primary_median_squared_distance: float
+    secondary_median_squared_distance: float
+    train_kernels: np.ndarray
+    training_column_means: np.ndarray
+    training_grand_means: np.ndarray
+
+    @staticmethod
+    def _validate(primary, secondary, presence, *, allow_single=False):
+        first = np.asarray(primary, dtype=np.float64)
+        second = np.asarray(secondary, dtype=np.float64)
+        mask = np.asarray(presence)
+        if allow_single and first.ndim == second.ndim == 2 and mask.ndim == 1:
+            first, second, mask = first[None], second[None], mask[None]
+        if first.ndim != 3 or second.ndim != 3 or first.shape[1] != 2 or second.shape[1] != 2:
+            raise ValueError("Continuous pair features must be [conditions,2,features]")
+        if first.shape[:2] != second.shape[:2] or not first.shape[0] or min(first.shape[2], second.shape[2]) < 1:
+            raise ValueError("Both pair representations must share nonempty condition/slot axes")
+        if mask.dtype.kind != "b" or mask.shape != first.shape[:2] or not mask.any(axis=1).all():
+            raise ValueError("presence must be boolean [conditions,2] with a present component per condition")
+        if not np.isfinite(first).all() or not np.isfinite(second).all():
+            raise ValueError("Continuous pair features must be finite")
+        return first, second, mask
+
+    @staticmethod
+    def _transform(features, presence, mean, std):
+        if features.shape[-1] != len(mean):
+            raise ValueError("Query feature axis differs from fitted training features")
+        # Padding is zero in transformed space, not a fictitious observation
+        # included in the fitted mean/std.
+        values = np.where(presence[..., None], (features - mean) / std, 0.0)
+        return values.reshape(len(features), -1)
+
+    @classmethod
+    def _fit_representation(cls, features, presence):
+        slots = features[presence]
+        mean, std = slots.mean(axis=0), slots.std(axis=0)
+        std[std < 1e-6] = 1.0
+        transformed = cls._transform(features, presence, mean, std)
+        aligned = squared_distances(transformed, transformed)
+        crossed = squared_distances(transformed, _swap_pair_slots(transformed))
+        distinct = np.triu_indices(len(transformed), k=1)
+        distances = np.concatenate((aligned[distinct], crossed[distinct]))
+        positive = distances[distances > 1e-12]
+        if not positive.size or not np.isfinite(positive).all():
+            raise ValueError("Distinct finite training pair distances are needed for each RBF scale")
+        return mean, std, transformed, float(np.median(positive)), aligned, crossed
+
+    @staticmethod
+    def _specs(specs):
+        result = []
+        for raw in specs:
+            spec = dict(raw)
+            mix, factor = float(spec["primary_mix"]), float(spec["gamma_factor"])
+            if not np.isfinite(mix) or not 0 <= mix <= 1:
+                raise ValueError("primary_mix must be finite and in [0,1]")
+            if not np.isfinite(factor) or factor <= 0:
+                raise ValueError("Both continuous RBF components require a positive gamma_factor")
+            result.append({**spec, "primary_mix": mix, "gamma_factor": factor})
+        if not result:
+            raise ValueError("At least one kernel specification is required")
+        return result
+
+    @staticmethod
+    def _raw_kernel(first_aligned, first_crossed, second_aligned, second_crossed,
+                    first_median, second_median, spec):
+        factor, mix = spec["gamma_factor"], spec["primary_mix"]
+        first = 0.5 * (np.exp(-factor / first_median * first_aligned)
+                       + np.exp(-factor / first_median * first_crossed))
+        second = 0.5 * (np.exp(-factor / second_median * second_aligned)
+                        + np.exp(-factor / second_median * second_crossed))
+        return mix * first + (1.0 - mix) * second
+
+    @classmethod
+    def fit(cls, primary, secondary, presence, specs: Sequence[Mapping]):
+        first, second, mask = cls._validate(primary, secondary, presence)
+        if len(first) < 2:
+            raise ValueError("At least two training anchors are required")
+        specs = cls._specs(specs)
+        pm, ps, px, pd, pa, pc = cls._fit_representation(first, mask)
+        sm, ss, sx, sd, sa, sc = cls._fit_representation(second, mask)
+        kernels, columns, grands = [], [], []
+        for spec in specs:
+            kernel = cls._raw_kernel(pa, pc, sa, sc, pd, sd, spec)
+            centered, column, grand = center_training_kernel(kernel)
+            kernels.append(centered)
+            columns.append(column)
+            grands.append(grand)
+        return cls(pm, ps, sm, ss, px, sx, mask.copy(), specs, pd, sd,
+                   np.stack(kernels), np.stack(columns), np.asarray(grands))
+
+    def query(self, primary, secondary, presence, stratum: int = 0):
+        s = int(stratum)
+        if not 0 <= s < len(self.specs):
+            raise IndexError("Unknown mean-head stratum")
+        first, second, mask = self._validate(primary, secondary, presence, allow_single=True)
+        p = self._transform(first, mask, self.primary_mean, self.primary_std)
+        q = self._transform(second, mask, self.secondary_mean, self.secondary_std)
+        kernel = self._raw_kernel(
+            squared_distances(p, self.primary_train),
+            squared_distances(p, _swap_pair_slots(self.primary_train)),
+            squared_distances(q, self.secondary_train),
+            squared_distances(q, _swap_pair_slots(self.secondary_train)),
+            self.primary_median_squared_distance, self.secondary_median_squared_distance,
+            self.specs[s])
+        return center_query_kernel(kernel, self.training_column_means[s],
+                                   self.training_grand_means[s])
+
+    def to_assets(self):
+        arrays = ("primary_mean", "primary_std", "secondary_mean", "secondary_std",
+                  "primary_train", "secondary_train", "training_presence", "train_kernels",
+                  "training_column_means", "training_grand_means")
+        return {**{name: getattr(self, name).copy() for name in arrays},
+                "specs": [dict(spec) for spec in self.specs],
+                "primary_median_squared_distance": self.primary_median_squared_distance,
+                "secondary_median_squared_distance": self.secondary_median_squared_distance}
+
+    @classmethod
+    def from_assets(cls, assets):
+        arrays = {name: np.asarray(assets[name], dtype=np.float64).copy()
+                  for name in ("primary_mean", "primary_std", "secondary_mean", "secondary_std",
+                               "primary_train", "secondary_train", "train_kernels",
+                               "training_column_means", "training_grand_means")}
+        mask = np.asarray(assets["training_presence"])
+        specs = cls._specs(assets["specs"])
+        pd = float(assets["primary_median_squared_distance"])
+        sd = float(assets["secondary_median_squared_distance"])
+        for prefix in ("primary", "secondary"):
+            mean, std, train = (arrays[prefix + suffix] for suffix in ("_mean", "_std", "_train"))
+            if mean.ndim != 1 or not mean.size or std.shape != mean.shape or np.any(std <= 0):
+                raise ValueError("Saved feature transforms must have matching positive scales")
+            if train.ndim != 2 or train.shape[1] != 2 * len(mean):
+                raise ValueError("Saved pair features do not match their feature transform")
+        n, strata = len(arrays["primary_train"]), len(specs)
+        if n < 2 or len(arrays["secondary_train"]) != n or mask.dtype.kind != "b" or mask.shape != (n, 2):
+            raise ValueError("Saved pair features and boolean presence axes differ")
+        if not mask.any(axis=1).all():
+            raise ValueError("Saved pair presence contains an empty condition")
+        if (arrays["train_kernels"].shape != (strata, n, n)
+                or arrays["training_column_means"].shape != (strata, n)
+                or arrays["training_grand_means"].shape != (strata,)):
+            raise ValueError("Saved kernel and centring axes differ from the training anchors")
+        if (not all(np.isfinite(value).all() for value in arrays.values())
+                or not np.isfinite([pd, sd]).all() or min(pd, sd) <= 0):
+            raise ValueError("Saved continuous pair kernel assets must be finite with positive distance scales")
+        return cls(arrays["primary_mean"], arrays["primary_std"], arrays["secondary_mean"],
+                   arrays["secondary_std"], arrays["primary_train"], arrays["secondary_train"],
+                   mask.copy(), specs, pd, sd, arrays["train_kernels"],
+                   arrays["training_column_means"], arrays["training_grand_means"])

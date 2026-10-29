@@ -38,7 +38,7 @@ _HELP = {
     "prepare-se": "--h5ad H5AD --condition-manifest JSON --gene-embeddings PT --output-dir NEW_DIR [--seed 42 --control-train-fraction 0.75 --n-hvg 2000 --log-every 10000]",
     "encode": "--input-dir DIR --checkpoint CKPT --shard-index N [--output-dir NEW_DIR --se-config YAML --device cuda:0 --batch-size 8 --num-shards 8 --seed 42 --log-every 200 --amp-dtype bf16]",
     "merge": "--input-dir DIR [--output-dir NEW_DIR --num-shards 8]",
-    "gene-assets": "--h5ad H5AD --split-manifest JSON --control-split JSON --esm-checkpoint PT --se-checkpoint CKPT --projector-checkpoint PT --output-dir NEW_DIR [--device cuda:0]",
+    "gene-assets": "--h5ad H5AD --split-manifest JSON --control-split JSON --esm-checkpoint PT --se-checkpoint CKPT --projector-checkpoint PT --output-dir NEW_DIR [--device cuda:0 --target-se-only]",
 }
 
 

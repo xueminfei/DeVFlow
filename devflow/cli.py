@@ -34,6 +34,7 @@ _ACTIONS = {
         "predict": ("devflow.runtime.norman", "predict"),
         "references": ("devflow.runtime.norman", "export_references"),
         "export-references": ("devflow.runtime.norman", "export_references"),
+        "monitor": ("devflow.runtime.monitor", "build_monitor"),
     },
 }
 

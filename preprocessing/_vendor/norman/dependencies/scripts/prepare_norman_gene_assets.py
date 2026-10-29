@@ -17,6 +17,7 @@ import socket
 import subprocess
 import sys
 import time
+import shutil
 import h5py
 import numpy as np
 import torch
@@ -50,12 +51,167 @@ def _repository_commit():
         return None
 
 
+def _encode_target_complete(tokenizer, indices, raw_counts, target_ids):
+    """Keep every target within the original gene budget and expression scale.
+
+    This changes selection only: duplicate-symbol aggregation, log1p and the
+    denominator over *all* mapped positive genes match Tokenizer.encode().
+    Zero-expression targets retain zero weight, rather than pseudo-counts.
+    """
+    target_ids = np.asarray(target_ids, dtype=np.int32)
+    if len(np.unique(target_ids)) != len(target_ids):
+        raise ValueError("Target token IDs must be unique")
+    budget = tokenizer.pad_length - 1
+    if len(target_ids) > budget:
+        raise ValueError("Targets exceed the SE gene-token budget")
+    tokens = tokenizer.gene_to_token[np.asarray(indices, dtype=np.int64)]
+    counts = np.asarray(raw_counts, dtype=np.float64)
+    valid = (tokens >= 0) & (counts > 0)
+    tokens, counts = tokens[valid], counts[valid]
+    if not len(tokens):
+        raise ValueError("Training control profile has no mapped positive genes")
+    order = np.argsort(tokens, kind="stable")
+    tokens, counts = tokens[order], counts[order]
+    starts = np.flatnonzero(np.r_[True, tokens[1:] != tokens[:-1]])
+    tokens, counts = tokens[starts], np.add.reduceat(counts, starts)
+    transformed = np.log1p(counts)
+    denominator = float(transformed.sum())
+    if not np.isfinite(denominator) or denominator <= 0:
+        raise ValueError("Invalid mapped expression denominator")
+    all_weights = np.zeros(len(tokenizer.fill_order), dtype=np.float64)
+    all_transformed = np.zeros_like(all_weights)
+    all_weights[tokens] = 100.0 * (transformed / denominator)
+    all_transformed[tokens] = transformed
+    ranked = tokens[np.lexsort((tokenizer.tie_priority[tokens], -transformed))]
+    others = ranked[~np.isin(ranked, target_ids)][:budget - len(target_ids)]
+    selected = np.concatenate((target_ids, others))
+    if len(selected) < budget:
+        fillers = tokenizer.fill_order[~np.isin(tokenizer.fill_order, selected)]
+        selected = np.concatenate((selected, fillers[:budget - len(selected)]))
+    selected = selected[np.lexsort((tokenizer.tie_priority[selected], -all_transformed[selected]))]
+    if len(selected) != budget or len(np.unique(selected)) != budget:
+        raise AssertionError("SE gene positions must contain unique tokens")
+    ids = np.zeros(tokenizer.pad_length, dtype=np.int32)
+    weights = np.zeros(tokenizer.pad_length, dtype=np.float32)
+    ids[1:], weights[1:] = selected, all_weights[selected].astype(np.float32)
+    positions = np.asarray([int(np.flatnonzero(selected == token)[0]) for token in target_ids])
+    return ids, weights, positions, denominator
+
+
+def _extract_target_se(a, meta, rows, targets, target_esm, symbols, lookup,
+                       tokenizer, ext, profile):
+    """Produce one immutable train-control-context token for every target."""
+    started = time.monotonic()
+    target_ids = np.asarray([lookup[g] for g in targets], dtype=np.int32)
+    if not set(targets) <= set(meta["source_genes"]):
+        raise ValueError("Every target must occur in the source expression axis")
+    raw = np.expm1(profile)
+    original_ids, original_weights = tokenizer.encode(np.arange(len(profile)), raw)
+    ids, weights, positions, denominator = _encode_target_complete(
+        tokenizer, np.arange(len(profile)), raw, target_ids)
+    # Every retained original token has exactly its previous expression weight.
+    original_lookup = {int(token): i + 1 for i, token in enumerate(original_ids[1:])}
+    shared = [(i + 1, original_lookup[int(token)]) for i, token in enumerate(ids[1:])
+              if int(token) in original_lookup]
+    if not all(weights[new] == original_weights[old] for new, old in shared):
+        raise AssertionError("Target inclusion changed shared gene expression weights")
+    if not np.array_equal(ids[positions + 1], target_ids):
+        raise AssertionError("Target positions do not match token IDs")
+    device = torch.device(a.device)
+    model = ext.load_model(a.se_checkpoint, None, device)
+    if model.training or any(p.requires_grad for p in model.parameters()):
+        raise AssertionError("SE must be frozen and in eval mode")
+    embedding_rows = model.pe_embedding.weight[
+        torch.as_tensor(target_ids, device=device, dtype=torch.long)].detach().float().cpu()
+    if not torch.equal(embedding_rows, target_esm):
+        raise ValueError("Target ESM2 dictionary order differs from the SE checkpoint")
+    ids_t = torch.from_numpy(ids[None].copy()).long().to(device)
+    counts_t = torch.from_numpy(weights[None].copy()).float().to(device)
+    with torch.inference_mode(), torch.autocast(
+            device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
+        src = F.normalize(model.pe_embedding(ids_t), dim=2)
+        src = torch.cat((model.cls_token.expand(1, 1, -1), src[:, 1:, :]), dim=1)
+        if model.dataset_token is not None:
+            src = torch.cat((src, model.dataset_token.expand(1, 1, -1)), dim=1)
+        gene_output, _, _ = model.forward(src=src, counts=counts_t)
+        target_se = gene_output[0, torch.as_tensor(positions + 1, device=device)].float().cpu().clone()
+    if target_se.shape != (len(targets), 2048) or not torch.isfinite(target_se).all():
+        raise ValueError("Invalid target SE gene tokens")
+    if (target_se.norm(dim=1) <= 0).any():
+        raise ValueError("A target SE token has zero norm")
+    del model, src, gene_output
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+    repository = Path(__file__).resolve().parents[5]
+    source_files = [Path(__file__).resolve(), repository / "preprocessing/norman.py",
+                    Path(ext.__file__).resolve()]
+    se_root = repository / "preprocessing/_vendor/state_encoder"
+    source_files += [se_root / value for value in (
+        "model/se.py", "model/flash_transformer.py", "data/utils.py", "configs/se600m.yaml")]
+    source_identity = {}
+    for source in source_files:
+        relative = source.relative_to(repository)
+        destination = a.output_dir / "source_snapshot" / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+        source_identity[str(relative)] = sha(source)
+    record = {
+        "schema": "norman_target_se_control_context_v1", "format_version": 1,
+        "complete": True, "created_unix": time.time(),
+        "git_commit": _repository_commit(), "source_files_sha256": source_identity,
+        "args": {k: str(v) if isinstance(v, Path) else v for k, v in vars(a).items()},
+        "h5ad_sha256": sha(a.h5ad), "split_manifest_sha256": sha(a.split_manifest),
+        "control_split_sha256": sha(a.control_split),
+        "esm_checkpoint_sha256": sha(a.esm_checkpoint),
+        "se_checkpoint_sha256": sha(a.se_checkpoint),
+        "projector_checkpoint_sha256": sha(a.projector_checkpoint),
+        "cell_order_sha256": ordered(meta["cell_ids"]),
+        "train_control_rows": rows.tolist(),
+        "train_control_ids": [meta["cell_ids"][i] for i in rows],
+        "train_control_rows_sha256": ordered(rows), "n_train_controls": len(rows),
+        "target_genes": targets, "target_gene_order_sha256": ordered(targets),
+        "context_genes": [symbols[int(i)] for i in ids[1:]],
+        "context_gene_order_sha256": ordered([symbols[int(i)] for i in ids[1:]]),
+        "selection": "all 101 targets plus highest-expression 1946 non-targets; original expression/tie ordering",
+        "normalization": "mean stored lognormalized training-control X; expm1 interface conversion; original tokenizer log1p and denominator over all mapped positive genes",
+        "mapped_log_expression_denominator": denominator,
+        "background_kind": "train_control_pool_mean",
+        "se_tokens": "same-forward gene_output at target token positions; excluding CLS and dataset token",
+        "se_frozen": True, "se_eval": True, "n_forward_passes": 1,
+        "amp_dtype": "float16" if device.type == "cuda" else "float32",
+        "stored_dtype": "float32", "test_expression_used": False,
+        "n_gene_positions": len(ids) - 1, "n_targets": len(targets),
+        "original_background_target_count": sum(int(x) in original_lookup for x in target_ids),
+        "shared_token_expression_weights_bitwise_equal": True,
+        "zero_expression_targets": [targets[i] for i in range(len(targets)) if weights[positions[i] + 1] == 0],
+        "shapes": {"target_se_tokens": list(target_se.shape), "target_esm": list(target_esm.shape)},
+        "seconds": time.monotonic() - started,
+    }
+    output = a.output_dir / "target_se_assets.pt"
+    torch.save({"target_genes": targets, "target_se_tokens": target_se,
+                "target_esm": target_esm.cpu(), "target_token_ids": torch.from_numpy(target_ids.copy()),
+                "target_counts": torch.from_numpy(weights[positions + 1].copy()),
+                "target_positions": torch.from_numpy(positions + 1),
+                "token_ids": torch.from_numpy(ids), "token_counts": torch.from_numpy(weights),
+                "metadata": record}, output)
+    record["asset_sha256"] = sha(output)
+    (a.output_dir / "target_se_assets.json").write_text(json.dumps(record, indent=2) + "\n")
+    (a.output_dir / "run_config.json").write_text(json.dumps(record["args"], indent=2) + "\n")
+    (a.output_dir / "invocation.json").write_text(json.dumps({
+        "executable": sys.executable, "argv": sys.argv, "cwd": os.getcwd(),
+        "source_files_sha256": source_identity}, indent=2) + "\n")
+    print(json.dumps({key: value for key, value in record.items() if key not in (
+        "train_control_rows", "train_control_ids", "context_genes", "target_genes")}, indent=2))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ("h5ad", "split-manifest", "control-split", "esm-checkpoint",
                  "se-checkpoint", "projector-checkpoint", "output-dir"):
         p.add_argument("--" + name, type=Path, required=True)
     p.add_argument("--device", default="cuda:0")
+    p.add_argument("--target-se-only", action="store_true",
+                   help="Cache all target SE gene tokens in one fixed train-control context; preserve all targets within the 2047 gene budget")
     a = p.parse_args()
     if a.output_dir.exists() and any(a.output_dir.iterdir()):
         raise FileExistsError(a.output_dir)
@@ -101,6 +257,10 @@ def main():
     spec.loader.exec_module(ext)
     mapping = np.array([lookup.get(g, -1) for g in meta["source_genes"]], dtype=np.int32)
     tokenizer = ext.Tokenizer(mapping, len(symbols), seed=42)
+    if a.target_se_only:
+        _extract_target_se(a, meta, rows, targets, target_esm, symbols, lookup,
+                           tokenizer, ext, profile)
+        return
     ids, weights = tokenizer.encode(np.arange(len(profile)), np.expm1(profile))
     background_genes = [symbols[int(i)] for i in ids[1:]]
     esm = torch.stack([protein[g].float().reshape(-1) for g in background_genes])[None]
