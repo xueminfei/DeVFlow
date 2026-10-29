@@ -27,11 +27,12 @@ def validate_config(config):
         raise ValueError("The new Combo recipe uses four sampling seeds 4243–4246")
     if config["evaluation"].get("monitor_seeds") != [4243]:
         raise ValueError("Online full evaluation must use seed4243")
-    if config.get("selection", {}).get("primary_metric") != "weighted_mse":
-        raise ValueError("This exploratory recipe selects one checkpoint by HVG weighted_mse")
+    from devflow.runtime.evaluate_combosciplex_mlp import selection_policy
+    policy = selection_policy(config)
     return {"status": "passed", "task": "combosciplex", "mean_head": True,
             "training_conditions": 24, "test_conditions": 5,
             "sampling_seeds": [4243, 4244, 4245, 4246],
+            "selection_policy": policy["policy"],
             "gradient_routes": {"flow": "latent residual + 32*population mean",
                 "head": "training-only KRR", "decoder": "scaled expression MMD only"}}
 

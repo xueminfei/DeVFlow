@@ -7,7 +7,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from devflow.data.combo_mean_assets import SCHEMA, input_identities, paired_features, validate_kernel_mode
+from devflow.data.combo_mean_assets import (SCHEMA, input_identities, paired_features,
+    validate_kernel_mode, validate_selection_mode)
 from devflow.data.combosciplex import (CELL_LINES, ComboDataset, load_bundle, training_binding)
 from devflow.flow.matching import pair_population
 from devflow.mean.kernels import MixedKernelBank
@@ -42,6 +43,8 @@ class ComboMLPRuntimeData:
         if manifest.get("schema") != SCHEMA or manifest.get("status") != "complete":
             raise ValueError("Combo mean assets are incomplete or incompatible")
         validate_kernel_mode(config, manifest=manifest)
+        validate_selection_mode(config, manifest=manifest,
+            report=json.loads((self.root / "kernel_selection.json").read_text()))
         if (manifest["training_binding"] != self.data.training_binding()
                 or not manifest.get("training_only_statistics")
                 or manifest.get("external_expression_used_for_fitting")):
@@ -59,6 +62,7 @@ class ComboMLPRuntimeData:
         metadata = self.mean_assets["metadata"]
         validate_kernel_mode(config, manifest=manifest, metadata=metadata,
                              kernelbank_assets=self.mean_assets["kernelbank_assets"])
+        validate_selection_mode(config, metadata=metadata)
         if metadata["training_binding"] != self.data.training_binding():
             raise ValueError("Combo mean-head training identity differs")
         names = [record["condition"] for record in self.data.train_records]

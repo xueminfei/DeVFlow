@@ -30,6 +30,20 @@ from .evaluation import (formal_mode, _checkpoint_identity, _cache_ok,
                                   _rank_zero_value, _clean, aggregate_rows)
 
 SEEDS = (4243, 4244, 4245, 4246)
+COMPOSITE_SELECTION_POLICY = "equal_panel_equal_family_mean_normalized_rank_v1"
+COMPOSITE_SELECTION_GROUPS = {
+    "hvg": {
+        "error": ["pseudobulk_mae", "pseudobulk_mse", "weighted_mse"],
+        "correlation": ["pearson_delta", "pearson_deltapert", "weighted_r2_deltactrl",
+                        "spearman_delta", "de_spearman"],
+        "distribution": ["endpoint_mmd", "emd", "e_distance"],
+    },
+    "de50": {
+        "error": ["pseudobulk_mae", "pseudobulk_mse", "weighted_mse"],
+        "correlation": ["pearson_delta", "pearson_deltapert", "weighted_r2_deltactrl"],
+        "distribution": ["endpoint_mmd", "emd", "e_distance"],
+    },
+}
 _FORMAL = dict(cells=128, conditions=5, genes=2000, time_points=80,
     rk4_intervals=79, precision="fp32", allow_tf32=False,
     expression="hvg_total_1000_log1p", response_profile="full_treated",
@@ -252,35 +266,114 @@ def _write_archive(path, seed, predictions, bundle, runtime, identity, branch, m
         gene_order_sha256=runtime.data.gene_order_sha256, n_genes=2000)
 
 
-def _selection(output):
-    """One declared primary metric, one checkpoint for every reported metric."""
+def selection_policy(config=None):
+    """Validate an explicit composite policy; old recipes default to HVG wMSE."""
+    settings = (config or {}).get("selection", {})
+    policy = settings.get("policy", "weighted_mse")
+    primary = settings.get("primary_metric", "weighted_mse")
+    expected = {"weighted_mse": "weighted_mse", COMPOSITE_SELECTION_POLICY: "composite_rank"}
+    if policy not in expected or primary != expected[policy]:
+        raise ValueError("Combo selection.policy and primary_metric must name the same supported rule")
+    if settings.get("direction", "min") != "min" or settings.get("tie_break", "earliest_update") != "earliest_update":
+        raise ValueError("Combo selection minimizes its score and breaks ties at the earliest update")
+    result = dict(policy=policy, primary_metric=primary, direction="min",
+        selection_seed=4243, selection_scope="external_test_exploratory",
+        tie_break="earliest_update", single_checkpoint_for_all_reported_metrics=True)
+    if policy == COMPOSITE_SELECTION_POLICY:
+        fixed = dict(panel_weights={"hvg": 0.5, "de50": 0.5},
+            family_weights={"error": 1 / 3, "correlation": 1 / 3, "distribution": 1 / 3},
+            groups=COMPOSITE_SELECTION_GROUPS,
+            metric_directions={"error": "min", "correlation": "max", "distribution": "min"})
+        for name, value in fixed.items():
+            if name in settings and settings[name] != value:
+                raise ValueError("The approved composite selection fixes " + name)
+        result.update(fixed, normalization="(average rank - 1) / (candidate count - 1); one candidate has rank 0")
+    return result
+
+
+def _selection(output, config=None):
+    """Select one checkpoint from complete, comparable online evaluations."""
+    policy = selection_policy(config)
+    composite = policy["policy"] == COMPOSITE_SELECTION_POLICY
     candidates = []
     for path in sorted((Path(output) / "evaluations").glob("step_*/summary.json")):
         item = json.loads(path.read_text())
         value = item.get("metrics", {}).get("weighted_mse")
         if (item.get("seeds") == [4243] and item.get("mode") == "full_prediction"
-                and value is not None and np.isfinite(value)):
+                and (composite or (value is not None and np.isfinite(value)))):
             candidates.append(item)
     protocols = {item["protocol_sha256"] for item in candidates}
     if len(protocols) > 1:
         raise ValueError("Checkpoint selection cannot mix evaluation protocols or source identities")
     if not candidates:
         return
-    chosen = min(candidates, key=lambda item: (item["metrics"]["weighted_mse"], item["update"]))
+    scores = [item["metrics"]["weighted_mse"] for item in candidates] if not composite else np.zeros(len(candidates))
+    rank_details = [{} for _ in candidates]
+    if composite:
+        identity_keys = ("protocol_sha256", "protocol", "runtime_source_sha256", "evaluator_sha256",
+            "reference_manifest_sha256", "protocol_file_sha256", "asset_manifest_sha256",
+            "gene_order_sha256", "training_binding")
+        identities = []
+        for item in candidates:
+            if (any(not item.get(key) for key in identity_keys)
+                    or item.get("purpose") != "monitor" or item.get("split") != "external_test"
+                    or item.get("model_matches_checkpoint") is not True
+                    or item.get("checkpoint_purpose") != "training_checkpoint"
+                    or item.get("checkpoint_update") != item.get("update")
+                    or item.get("protocol") != _FORMAL
+                    or item.get("n_conditions") != 5 or item.get("cells_per_condition") != 128
+                    or item.get("precision") != "fp32" or item.get("time_points") != 80
+                    or not item.get("checkpoint") or not item.get("checkpoint_sha256")):
+                raise ValueError("Composite selection requires complete formal online checkpoint identities")
+            identities.append({key: item[key] for key in identity_keys})
+        if len({json_sha256(identity) for identity in identities}) != 1:
+            raise ValueError("Composite candidates must share source, references, protocol, assets, genes and training split")
+        if len({item["update"] for item in candidates}) != len(candidates):
+            raise ValueError("Composite selection has duplicate optimizer updates")
+        for detail in rank_details:
+            detail.update(normalized_metric_ranks={}, family_scores={}, panel_scores={})
+        for panel, families in policy["groups"].items():
+            panel_scores = np.zeros(len(candidates))
+            for family, metrics in families.items():
+                family_scores = np.zeros(len(candidates))
+                for metric in metrics:
+                    name = ("de50_" if panel == "de50" else "") + metric
+                    values = [item["metrics"].get(name) for item in candidates]
+                    if any(value is None or not np.isfinite(value) for value in values):
+                        raise ValueError("Composite selection requires a finite value for " + name)
+                    ranks = pd.Series(values).rank(method="average", ascending=(family != "correlation")).to_numpy()
+                    normalized = (ranks - 1) / (len(candidates) - 1) if len(candidates) > 1 else np.zeros(1)
+                    family_scores += normalized / len(metrics)
+                    for detail, value in zip(rank_details, normalized):
+                        detail["normalized_metric_ranks"][name] = float(value)
+                panel_scores += family_scores / len(families)
+                for detail, value in zip(rank_details, family_scores):
+                    detail["family_scores"].setdefault(panel, {})[family] = float(value)
+            scores += policy["panel_weights"][panel] * panel_scores
+            for detail, value in zip(rank_details, panel_scores):
+                detail["panel_scores"][panel] = float(value)
+    chosen_index = min(range(len(candidates)), key=lambda i: (float(scores[i]), candidates[i]["update"]))
+    chosen = candidates[chosen_index]
     selected = dict(update=chosen["update"], optimizer_step=chosen["update"],
         checkpoint=chosen["checkpoint"], checkpoint_sha256=chosen["checkpoint_sha256"],
-        primary_metric="weighted_mse", primary_value=chosen["metrics"]["weighted_mse"],
+        primary_metric=policy["primary_metric"], primary_value=float(scores[chosen_index]),
         selection_seed=4243, selection_scope="external_test_exploratory",
         tie_break="earlier optimizer step for an exactly equal primary value",
         protocol_sha256=chosen["protocol_sha256"],
-        single_checkpoint_for_all_reported_metrics=True)
+        single_checkpoint_for_all_reported_metrics=True, selection_policy=policy,
+        selection_policy_sha256=json_sha256(policy), candidate_count=len(candidates),
+        candidate_updates=[item["update"] for item in candidates])
+    if composite:
+        selected.update(composite_score=float(scores[chosen_index]),
+            selection_identity=identities[chosen_index], **rank_details[chosen_index])
     atomic_json(Path(output) / "SELECTED_CHECKPOINT.json", selected)
     atomic_json(Path(output) / "checkpoint_candidates.json", dict(
-        selection_scope="external_test_exploratory", primary_metric="weighted_mse",
-        direction="min", selected_checkpoint=selected,
+        selection_scope="external_test_exploratory", primary_metric=policy["primary_metric"],
+        direction="min", selection_policy=policy, selected_checkpoint=selected,
         candidates=[dict(update=item["update"], checkpoint=item["checkpoint"],
-            checkpoint_sha256=item["checkpoint_sha256"], metrics=item["metrics"])
-            for item in candidates]))
+            checkpoint_sha256=item["checkpoint_sha256"], metrics=item["metrics"],
+            selection_score=float(scores[i]), **rank_details[i])
+            for i, item in enumerate(candidates)]))
 
 
 def _formal_benchmark(config, root, rows_by_branch, method):
@@ -446,7 +539,7 @@ def evaluate(model, runtime, config, step, checkpoint_path, *, seeds=(4243,),
         pd.DataFrame([row]).to_csv(root / f"{prefix}summary.csv", index=False)
         atomic_json(root / ("benchmark_summary.json" if purpose == "benchmark" else "summary.json"), _clean(summary))
         if purpose == "monitor" and not mean_only:
-            _selection(config["output_dir"])
+            _selection(config["output_dir"], config)
         if purpose == "benchmark":
             manifests = _formal_benchmark(config, root, rows_by_branch, method)
             final = Path(config["output_dir"]) / "benchmark" / f"step_{int(step):06d}"
