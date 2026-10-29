@@ -31,6 +31,23 @@ def tanimoto(a, b):
     return np.divide(intersection, union, out=np.ones_like(intersection), where=union > 0)
 
 
+def _swap_pair_slots(values):
+    """Exchange the two equal-width slots of an already validated matrix."""
+    midpoint = values.shape[1] // 2
+    return np.concatenate((values[:, midpoint:], values[:, :midpoint]), axis=1)
+
+
+def _validate_pair_inputs(features, fingerprints):
+    if not features.shape[1] or features.shape[1] % 2:
+        raise ValueError("Pair kernels require two equal-width MAPKG slots")
+    if not fingerprints.shape[1] or fingerprints.shape[1] % 2:
+        raise ValueError("Pair kernels require two equal-width Morgan slots")
+    if not np.isin(fingerprints, [0, 1]).all():
+        raise ValueError("Morgan Tanimoto expects binary fingerprints")
+    if not fingerprints.any(axis=1).all():
+        raise ValueError("A pair kernel condition cannot contain two empty drug slots")
+
+
 def center_training_kernel(kernel):
     kernel = np.asarray(kernel, dtype=np.float64)
     column_mean = kernel.mean(axis=0)
@@ -80,9 +97,20 @@ class MixedKernelBank:
     train_kernels: np.ndarray
     training_column_means: np.ndarray
     training_grand_means: np.ndarray
+    pair_permutation_invariant: bool = False
 
     @classmethod
-    def fit(cls, train_features, train_fingerprints, specs: Sequence[Mapping]):
+    def fit(cls, train_features, train_fingerprints, specs: Sequence[Mapping], *,
+            pair_permutation_invariant=False):
+        """Fit training-only scales and optionally average both pair alignments.
+
+        A shared slot transform makes simultaneous permutation an isometry.
+        The aligned/crossed average is then the full four-term group average,
+        so the permutation-invariant RBF and Tanimoto kernels remain PSD.
+        """
+        if not isinstance(pair_permutation_invariant, (bool, np.bool_)):
+            raise ValueError("pair_permutation_invariant must be a boolean")
+        pair_permutation_invariant = bool(pair_permutation_invariant)
         x = np.asarray(train_features, dtype=np.float64)
         fingerprints = np.asarray(train_fingerprints, dtype=np.uint8)
         if x.ndim != 2 or len(x) < 2 or not np.isfinite(x).all():
@@ -91,15 +119,29 @@ class MixedKernelBank:
             raise ValueError("Fingerprints must have the same training anchor order")
         if not np.isin(fingerprints, [0, 1]).all():
             raise ValueError("Morgan Tanimoto expects binary fingerprints")
-        mean, std = x.mean(0), x.std(0)
+        if pair_permutation_invariant:
+            _validate_pair_inputs(x, fingerprints)
+            slots = x.reshape(len(x), 2, -1)
+            mean = np.tile(slots.mean(axis=(0, 1)), 2)
+            std = np.tile(slots.std(axis=(0, 1)), 2)
+        else:
+            mean, std = x.mean(0), x.std(0)
         std[std < 1e-6] = 1.0  # Original MAPKG training-only standardisation.
         z = (x - mean) / std
         distances = squared_distances(z, z)
-        positive = distances[distances > 1e-12]
+        if pair_permutation_invariant:
+            crossed_distances = squared_distances(z, _swap_pair_slots(z))
+            distinct = np.triu_indices(len(x), k=1)
+            scale_distances = np.concatenate((distances[distinct], crossed_distances[distinct]))
+            positive = scale_distances[scale_distances > 1e-12]
+        else:
+            positive = distances[distances > 1e-12]
         if not positive.size:
             raise ValueError("Distinct training features are needed for the RBF distance scale")
         median = float(np.median(positive))
         structural = tanimoto(fingerprints, fingerprints)
+        if pair_permutation_invariant:
+            structural = 0.5 * (structural + tanimoto(fingerprints, _swap_pair_slots(fingerprints)))
         matrices, columns, grands, clean_specs = [], [], [], []
         for raw in specs:
             spec = dict(raw)
@@ -109,8 +151,13 @@ class MixedKernelBank:
                 raise ValueError("kg_mix must lie in [0,1]")
             if mix > 0 and (factor is None or float(factor) <= 0):
                 raise ValueError("An RBF component requires a positive gamma_factor")
-            kernel = structural.copy() if mix == 0 else (
-                mix * np.exp(-float(factor) / median * distances) + (1.0 - mix) * structural)
+            if pair_permutation_invariant and mix > 0:
+                rbf = 0.5 * (np.exp(-float(factor) / median * distances)
+                             + np.exp(-float(factor) / median * crossed_distances))
+                kernel = mix * rbf + (1.0 - mix) * structural
+            else:
+                kernel = structural.copy() if mix == 0 else (
+                    mix * np.exp(-float(factor) / median * distances) + (1.0 - mix) * structural)
             centered, col, grand = center_training_kernel(kernel)
             matrices.append(centered)
             columns.append(col)
@@ -119,7 +166,8 @@ class MixedKernelBank:
         if not matrices:
             raise ValueError("At least one stratum specification is required")
         return cls(mean, std, z, fingerprints.copy(), clean_specs, median,
-                   np.stack(matrices), np.stack(columns), np.asarray(grands))
+                   np.stack(matrices), np.stack(columns), np.asarray(grands),
+                   pair_permutation_invariant=pair_permutation_invariant)
 
     def query(self, features, fingerprints, stratum: int):
         s = int(stratum)
@@ -135,14 +183,24 @@ class MixedKernelBank:
             raise ValueError("Query feature axis differs from the fitted training anchors")
         if f.shape != (len(x), self.fingerprint_train.shape[1]):
             raise ValueError("Query fingerprints and feature rows differ")
+        if self.pair_permutation_invariant:
+            _validate_pair_inputs(x, f)
         z = (x - self.feature_mean) / self.feature_std
         structural = tanimoto(f, self.fingerprint_train)
+        if self.pair_permutation_invariant:
+            structural = 0.5 * (structural + tanimoto(f, _swap_pair_slots(self.fingerprint_train)))
         spec = self.specs[s]
         mix = float(spec["kg_mix"])
-        kernel = structural if mix == 0 else (
-            mix * np.exp(-float(spec["gamma_factor"]) / self.median_squared_distance
-                         * squared_distances(z, self.x_train))
-            + (1.0 - mix) * structural)
+        if self.pair_permutation_invariant and mix > 0:
+            scale = float(spec["gamma_factor"]) / self.median_squared_distance
+            rbf = 0.5 * (np.exp(-scale * squared_distances(z, self.x_train))
+                         + np.exp(-scale * squared_distances(z, _swap_pair_slots(self.x_train))))
+            kernel = mix * rbf + (1.0 - mix) * structural
+        else:
+            kernel = structural if mix == 0 else (
+                mix * np.exp(-float(spec["gamma_factor"]) / self.median_squared_distance
+                             * squared_distances(z, self.x_train))
+                + (1.0 - mix) * structural)
         return center_query_kernel(kernel, self.training_column_means[s],
                                    self.training_grand_means[s])
 
@@ -153,10 +211,14 @@ class MixedKernelBank:
                     median_squared_distance=self.median_squared_distance,
                     train_kernels=self.train_kernels.copy(),
                     training_column_means=self.training_column_means.copy(),
-                    training_grand_means=self.training_grand_means.copy())
+                    training_grand_means=self.training_grand_means.copy(),
+                    pair_permutation_invariant=self.pair_permutation_invariant)
 
     @classmethod
     def from_assets(cls, assets):
+        pair_permutation_invariant = assets.get("pair_permutation_invariant", False)
+        if not isinstance(pair_permutation_invariant, (bool, np.bool_)):
+            raise ValueError("Saved pair_permutation_invariant must be a boolean")
         return cls(
             np.asarray(assets["feature_mean"], dtype=np.float64),
             np.asarray(assets["feature_std"], dtype=np.float64),
@@ -165,4 +227,5 @@ class MixedKernelBank:
             [dict(s) for s in assets["specs"]], float(assets["median_squared_distance"]),
             np.asarray(assets["train_kernels"], dtype=np.float64),
             np.asarray(assets["training_column_means"], dtype=np.float64),
-            np.asarray(assets["training_grand_means"], dtype=np.float64))
+            np.asarray(assets["training_grand_means"], dtype=np.float64),
+            pair_permutation_invariant=bool(pair_permutation_invariant))

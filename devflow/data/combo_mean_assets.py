@@ -23,6 +23,32 @@ from devflow.runtime.artifacts import atomic_json, sha256
 SCHEMA = "combosciplex_mlp_mean_assets_v1"
 DEFAULT_GRID = {"kg_mix": [0.0, 0.5, 1.0], "gamma_factor": [0.5, 1.0, 2.0],
                 "alpha": [0.001, 0.01, 0.1, 1.0, 10.0]}
+LEGACY_KERNEL = "canonical_pair_concat_MAPKG_RBF_Morgan_Tanimoto"
+PERMUTATION_AVERAGED_KERNEL = "permutation_averaged_pair_concat_MAPKG_RBF_Morgan_Tanimoto"
+
+
+def configured_kernel(config):
+    name = config.get("mean_head", {}).get("kernel", LEGACY_KERNEL)
+    if name not in (LEGACY_KERNEL, PERMUTATION_AVERAGED_KERNEL):
+        raise ValueError("Unsupported Combo mean kernel: " + str(name))
+    return name
+
+
+def validate_kernel_mode(config, *, manifest=None, metadata=None, kernelbank_assets=None):
+    """Keep old assets legacy-only and reject config/asset mode mismatches."""
+    name = configured_kernel(config)
+    requested = name == PERMUTATION_AVERAGED_KERNEL
+    for source, values in (("manifest", manifest), ("metadata", metadata),
+                           ("kernelbank_assets", kernelbank_assets)):
+        if values is None:
+            continue
+        recorded = values.get("pair_permutation_invariant", False)
+        if not isinstance(recorded, bool) or recorded != requested:
+            raise ValueError("Combo mean kernel mode differs from " + source
+                             + "; prepare matching assets in a new directory")
+        if source != "kernelbank_assets" and values.get("kernel", LEGACY_KERNEL) != name:
+            raise ValueError("Combo mean kernel name differs from " + source)
+    return requested
 
 
 def configured_grid(config):
@@ -61,7 +87,8 @@ def input_identities(config):
             for name, path in paths.items()}
 
 
-def select_kernel(features, fingerprints, deltas, records, grid=None):
+def select_kernel(features, fingerprints, deltas, records, grid=None, *,
+                  pair_permutation_invariant=False):
     """Refit feature scales, kernel centering and intercept inside every fold."""
     grid = {**DEFAULT_GRID, **dict(grid or {})}
     mixes = sorted(set(float(x) for x in grid["kg_mix"]))
@@ -81,7 +108,8 @@ def select_kernel(features, fingerprints, deltas, records, grid=None):
         keep = np.asarray([i for i in range(len(records)) if i != held], dtype=np.int64)
         bias = deltas[keep].mean(0)
         centered_targets = deltas[keep] - bias
-        bank = MixedKernelBank.fit(features[keep], fingerprints[keep], specs)
+        bank = MixedKernelBank.fit(features[keep], fingerprints[keep], specs,
+                                  pair_permutation_invariant=pair_permutation_invariant)
         candidate = 0
         for s, _spec in enumerate(specs):
             query = bank.query(features[held:held + 1], fingerprints[held:held + 1], s)
@@ -101,6 +129,8 @@ def select_kernel(features, fingerprints, deltas, records, grid=None):
         "fold_conditions": [records[i]["condition"] for i in folds],
         "score": "equal-fold mean squared delta error across all 2000 genes",
         "fold_feature_standardization_and_kernel_centering": "training_anchors_only",
+        "pair_permutation_invariant": bool(pair_permutation_invariant),
+        "kernel": PERMUTATION_AVERAGED_KERNEL if pair_permutation_invariant else LEGACY_KERNEL,
         "external_test_used": False, "grid": grid, "candidates": rows,
         "selected": candidates[chosen], "selected_mean_delta_mse": float(means[chosen]),
         "tie_break": "first candidate in ascending mix, gamma, alpha order"}
@@ -111,11 +141,14 @@ def prepare_assets(config):
     """Prepare immutable training statistics; never fit/load the model's A."""
     import rdkit
 
+    kernel_name = configured_kernel(config)
+    pair_permutation_invariant = validate_kernel_mode(config)
     root = Path(config["data"]["mlp_assets"]).resolve()
     if (root / "manifest.json").exists():
         manifest = json.loads((root / "manifest.json").read_text())
         if manifest.get("schema") != SCHEMA or manifest.get("status") != "complete":
             raise ValueError("Existing Combo mean assets are incomplete or incompatible")
+        validate_kernel_mode(config, manifest=manifest)
         identities = input_identities(config)
         if {k: v["sha256"] for k, v in identities.items()} != {
                 k: v["sha256"] for k, v in manifest["inputs"].items()}:
@@ -126,6 +159,9 @@ def prepare_assets(config):
         for name, expected in manifest["files"].items():
             if sha256(root / name) != expected:
                 raise ValueError("Existing Combo mean asset changed: " + name)
+        saved = torch.load(root / "mean_assets.pt", map_location="cpu", weights_only=False)
+        validate_kernel_mode(config, manifest=manifest, metadata=saved["metadata"],
+                             kernelbank_assets=saved["kernelbank_assets"])
         return {"status": "complete", "reused": True, "manifest": str(root / "manifest.json")}
     if root.exists() and any(root.iterdir()):
         raise FileExistsError("Use an empty directory for new Combo mean assets")
@@ -149,13 +185,16 @@ def prepare_assets(config):
     control = full_expression_mean(dataset, dataset.control_rows)
     targets = np.stack([full_expression_mean(dataset, record["rows"]) - control for record in dataset.records])
     grid = configured_grid(config)
-    selected, cv_report = select_kernel(pair_features, pair_fingerprints, targets, dataset.records, grid)
+    selected, cv_report = select_kernel(pair_features, pair_fingerprints, targets, dataset.records, grid,
+                                      pair_permutation_invariant=pair_permutation_invariant)
     spec = {name: selected[name] for name in ("kg_mix", "gamma_factor")}
-    kernel = MixedKernelBank.fit(pair_features, pair_fingerprints, [spec])
+    kernel = MixedKernelBank.fit(pair_features, pair_fingerprints, [spec],
+                                pair_permutation_invariant=pair_permutation_invariant)
     binding = training_binding(bundle)
     metadata = {"task": "combosciplex", "schema": SCHEMA, "training_binding": binding,
         "conditions": [r["condition"] for r in dataset.records], "strata": ["A549_neutral_dose"],
         "training_only_statistics": True, "external_expression_used_for_fitting": False,
+        "kernel": kernel_name, "pair_permutation_invariant": pair_permutation_invariant,
         "condition_representation": "canonical_name_sorted_concat_MAPKG_2x1024",
         "structure_representation": "canonical_name_sorted_concat_binary_Morgan_2x2048",
         "single_drug_padding": "second_slot_exact_zero", "rdkit_version": rdkit.__version__,
@@ -176,6 +215,7 @@ def prepare_assets(config):
     filenames = ["mean_assets.pt", "drug_features.npz", "condition_latent_delta.npy", "conditions.json", "kernel_selection.json"]
     manifest = {"schema": SCHEMA, "status": "complete", "training_binding": binding,
         "training_only_statistics": True, "external_expression_used_for_fitting": False,
+        "kernel": kernel_name, "pair_permutation_invariant": pair_permutation_invariant,
         "kernel_grid": grid, "kernel_selection": selected, "inputs": input_identities(config),
         "training_rows_sha256": sequence_sha256([row["cell_id"] for row in bundle["obs"] if row["split"] == "train"]),
         "files": {name: sha256(root / name) for name in filenames}}
