@@ -14,7 +14,8 @@
     "projector_checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-main/MAP/checkpoints/sciplex3_map_2026-08-12/epoch_11.pt",
     "decoder_checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/outputs/norman19_devflow_assets/decoder/checkpoint_step_00050000.pt",
     "decoder_training_manifest": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/outputs/norman19_devflow_assets/decoder/run_manifest.json",
-    "hvg_provenance": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_0/hvg_provenance.json"
+    "hvg_provenance": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/datasets/norman_official_additive_20261018/fold_0/hvg_provenance.json",
+    "target_se_assets": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/DeVFlow/outputs/norman19/additive/kernel_mean_control_se_20261029/target_se/target_se_assets.pt"
   },
   "expected_counts": {
     "train_conditions": 189,
@@ -30,31 +31,46 @@
     "attention_layers": 2,
     "attention_dropout": 0.1,
     "target_role_trainable": true,
-    "velocity_state_dims": [2048, 2048, 2048],
-    "velocity_time_dims": [1024, 1024, 1024],
-    "velocity_decoder_dims": [4096, 4096, 4096],
+    "velocity_state_dims": [
+      2048,
+      2048,
+      2048
+    ],
+    "velocity_time_dims": [
+      1024,
+      1024,
+      1024
+    ],
+    "velocity_decoder_dims": [
+      4096,
+      4096,
+      4096
+    ],
     "time_frequencies": 1024,
-    "decoder_hidden_dims": [512, 1024],
+    "decoder_hidden_dims": [
+      512,
+      1024
+    ],
     "decoder_dropout": 0.1,
     "decoder_output_activation": "relu",
-    "mean_head_hidden_dim": 2048,
-    "use_mean_head": true
+    "use_mean_head": true,
+    "mean_head_kind": "kernel"
   },
   "training": {
     "steps": 50000,
     "batch_size": 128,
     "learning_rate": 0.0001,
     "projector_trainable_last_layer": true,
-    "projector_last_layer_learning_rate": 0.00001,
+    "projector_last_layer_learning_rate": 1e-05,
     "mean_head_weight": 1.0,
-    "decoder_mmd_weight": 0.000005,
+    "decoder_mmd_weight": 1.0,
     "external_expression_loss": true,
     "mean_shift_weight": 0.005,
-    "expression_mmd_weight": 0.000005,
+    "expression_mmd_weight": 1.0,
     "expression_mean_weight": 0.0,
     "expression_mean_decoder_only": true,
     "expression_residual_weight": 0.0,
-    "expression_mmd_time_points": 5,
+    "expression_mmd_time_points": 80,
     "expression_mmd_every": 1,
     "train_decoder": true,
     "path_sigma": 0.5,
@@ -65,26 +81,86 @@
     "amp_dtype": "bf16",
     "seed": 42,
     "log_every": 10,
-    "save_every": 5000
+    "save_every": 5000,
+    "mean_head_learning_rate": 0.001,
+    "gradient_accumulation": 1,
+    "learning_rates": {
+      "head": 0.001,
+      "flow": 0.0001,
+      "decoder": 0.0001,
+      "projector_last_layer": 1e-05
+    }
   },
   "prediction": {
-    "checkpoint": "outputs/norman19/additive/flow/checkpoint_step_00050000.pt",
-    "output_dir": "outputs/norman19/additive/predictions",
-    "seeds": [4243, 4244, 4245, 4246],
+    "checkpoint": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/DeVFlow/outputs/norman19/additive/kernel_mean_control_se_20261029/flow/checkpoint_step_00050000.pt",
+    "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/DeVFlow/outputs/norman19/additive/kernel_mean_control_se_20261029/predictions",
+    "seeds": [
+      4243,
+      4244,
+      4245,
+      4246
+    ],
     "cells_per_condition": 128,
     "time_points": 80,
     "chunk_size": 128
   },
   "evaluation": {
-    "monitor_seeds": [4243],
-    "mean_seeds": [4243],
+    "monitor_seeds": [
+      4243
+    ],
+    "mean_seeds": [
+      4243
+    ],
     "full_every": 2000,
     "mean_every": 2000,
     "time_points": 80,
-    "precision": "fp32"
+    "precision": "fp32",
+    "references": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/DeVFlow/outputs/norman19/additive/evaluation_references"
   },
-  "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/DeVFlow/outputs/norman19/additive/flow",
+  "output_dir": "/home/ma-user/work/feixuemin-workspace/MAP-Flowmatching/DeVFlow/outputs/norman19/additive/kernel_mean_control_se_20261029/flow",
   "references": {
     "output_dir": "outputs/norman19/additive/evaluation_references"
-  }
+  },
+  "mean_head": {
+    "cv_folds": 8,
+    "cv_seed": 42,
+    "primary_mix_grid": [
+      0.0,
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "gamma_factor_grid": [
+      0.125,
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ],
+    "alpha_grid": [
+      1e-05,
+      3e-05,
+      0.0001,
+      0.0003,
+      0.001,
+      0.003,
+      0.01,
+      0.1,
+      1.0,
+      10.0
+    ]
+  },
+  "selection": {
+    "protocol": "fixed_final_update",
+    "primary_metric": null,
+    "final_update": 50000,
+    "external_used_for_selection": false
+  },
+  "world_size": 8,
+  "train_conditions": 189,
+  "conditions_per_update": 8,
+  "final_update": 50000,
+  "start_update": 0
 }

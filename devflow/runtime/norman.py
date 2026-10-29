@@ -10,6 +10,8 @@ import json
 import math
 import os
 import random
+import subprocess
+import sys
 import time
 import numpy as np
 import torch
@@ -18,7 +20,8 @@ from torch import nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from devflow.networks.expression_decoder import LatentToGeneDecoder
-from devflow.mean.head import NeuralMeanHead
+from devflow.mean.head import TrainableKernelMeanHead
+from devflow.mean.kernels import ContinuousPairKernelBank
 from devflow.mean.composition import compose_expression
 from devflow.networks.genetic_condition import FrozenMAPGeneProjector, GenePerturbationEncoder
 from devflow.networks.mlp_velocity import (ControlConditionFusion, MLPCellFlowVelocity,
@@ -552,8 +555,10 @@ class NormanGeneFlowMatchingSystem(nn.Module):
         decoder_hidden_dims=(512, 1024),
         decoder_dropout: float = 0.1,
         decoder_output_activation: str = "relu",
-        mean_head_hidden_dim: int = 2048,
-        use_mean_head: bool = True,
+        use_mean_head: bool = False,
+        mean_head_kind: str = "kernel",
+        mean_assets=None,
+        mean_features=None,
     ):
         super().__init__()
         if int(gene_condition_dim) != 1024:
@@ -592,11 +597,37 @@ class NormanGeneFlowMatchingSystem(nn.Module):
             output_activation=str(decoder_output_activation),
         )
         self.use_mean_head = bool(use_mean_head)
-        self.mean_head = (NeuralMeanHead(
-            condition_dim=gene_condition_dim,
-            hidden_dim=int(mean_head_hidden_dim),
-            expression_dim=self.expression_dim,
-        ) if self.use_mean_head else None)
+        if mean_head_kind != "kernel":
+            raise ValueError("Norman uses the shared kernel mean head")
+        self.mean_head = None
+        self.mean_kernelbank = None
+        self.mean_features = None
+        if self.use_mean_head:
+            if mean_assets is None or mean_features is None:
+                raise ValueError("Kernel mean head requires fixed training assets and gene features")
+            self.mean_head = TrainableKernelMeanHead(**{
+                key: mean_assets[key] for key in
+                ("kernel", "targets", "bias", "control_mean", "alpha", "metadata")
+            })
+            self.mean_kernelbank = ContinuousPairKernelBank.from_assets(mean_assets["kernelbank_assets"])
+            self.mean_features = mean_features
+            if self.mean_head.A.shape[-1] != self.expression_dim:
+                raise ValueError("Kernel mean head and decoder gene dimensions differ")
+
+    def predict_condition_mean(self, condition_name):
+        """A fixed gene prior supplies kernel queries independently of Flow."""
+        if self.mean_head is None:
+            raise ValueError("This checkpoint has no kernel mean head")
+        from devflow.data.norman import paired_gene_features
+        primary, secondary, presence = paired_gene_features([condition_name], self.mean_features)
+        query = self.mean_kernelbank.query(primary, secondary, presence, 0)
+        return self.mean_head.predict_mean(query, 0)[0]
+
+    def export_mean_assets(self):
+        if self.mean_head is None:
+            return None
+        return {**self.mean_head.export_assets(),
+                "kernelbank_assets": self.mean_kernelbank.to_assets()}
 
     @staticmethod
     def _take_condition(value: Optional[torch.Tensor], index: torch.Tensor, count: int):
@@ -1020,38 +1051,42 @@ class FlowTrainingForward(nn.Module):
     def forward(self, source, target, gene_kwargs, mean_shift, generator,
                 epsilon, iterations, tolerance, mean_weight, source_h=None,
                 target_expression=None, apply_expression_mmd=True,
-                head_target_delta=None, control_expression_mean=None):
+                mean_condition=None):
         loss, parts = self.system.flow_matching_loss(
             source, source if source_h is None else source_h, target, gene_kwargs,
             epsilon=epsilon, max_iterations=iterations, tolerance=tolerance,
             mean_shift_target=mean_shift, mean_shift_weight=mean_weight,
             generator=generator, return_components=True,
         )
-        # The Norman mean/MMD recipe uses one shared DDP forward.  The head
-        # sees a detached condition vector; MMD sees a detached Flow endpoint
-        # and detached predicted mean, so it updates the decoder only.
+        # The shared kernel head has fixed gene priors and a full-anchor loss.
+        # MMD sees a detached Flow endpoint and detached predicted mean, so
+        # only the decoder is updated by the expression distribution loss.
         if self.external_expression_loss:
-            if not apply_expression_mmd:
-                return loss, parts
             if self.system.mean_head is None:
                 raise ValueError('external expression loss requires a mean head')
             if target_expression is None or target_expression.ndim != 2:
                 raise ValueError('Expression losses require original target expression rows')
             if target_expression.size(0) != target.size(0):
                 raise ValueError('Target expression rows must match the original treated batch')
-            if head_target_delta is None or control_expression_mean is None:
-                raise ValueError('head_target_delta and control_expression_mean are required')
-            condition = self.system._gene_condition_for_cells(gene_kwargs, 1)
-            head_loss, head_delta = self.system.mean_head.loss(
-                condition.detach(), head_target_delta
-            )
+            if mean_condition is None:
+                raise ValueError('The kernel mean head needs the current condition name')
+            head_loss, head_parts = self.system.mean_head.loss(return_parts=True)
+            if not apply_expression_mmd:
+                parts = dict(parts)
+                parts.update(head_parts)
+                parts.update(head_loss=head_loss,
+                             weighted_head_loss=self.mean_head_weight * head_loss)
+                total = loss + self.mean_head_weight * head_loss
+                parts["total_loss"] = total
+                return total, parts
+            final_mean = self.system.predict_condition_mean(mean_condition).detach()
             self.system.decoder.eval()
-            endpoint = self.system.rollout(
-                source, source if source_h is None else source_h, gene_kwargs,
-                time_points=self.expression_mmd_time_points,
-            )
+            with torch.no_grad():
+                endpoint = self.system.rollout(
+                    source, source if source_h is None else source_h, gene_kwargs,
+                    time_points=self.expression_mmd_time_points,
+                )
             raw_prediction = self.system.decoder(endpoint.detach()).float()
-            final_mean = (control_expression_mean + head_delta.detach()[0]).float()
             composed = compose_expression(raw_prediction, final_mean, detach_mean=True,
                                           output_dtype=torch.float32)
             truth = target_expression.float()
@@ -1060,6 +1095,7 @@ class FlowTrainingForward(nn.Module):
                     composed.float(), truth, sigmas=median_sigmas(truth.detach())
                 ) if self.decoder_mmd_weight > 0 else truth.new_zeros((), dtype=torch.float32)
             parts = dict(parts)
+            parts.update(head_parts)
             parts['head_loss'] = head_loss
             parts['weighted_head_loss'] = self.mean_head_weight * head_loss
             parts['decoder_mmd_loss'] = mmd
@@ -1303,11 +1339,21 @@ def _from_checkpoint(cls, checkpoint_path, *, model_config=None, projector_check
     if not genes or (expected_genes is not None and list(genes) != list(expected_genes)):
         raise ValueError("Checkpoint gene order differs from the dataset")
     state = payload["model_state_dict"]
+    if any(key.startswith("mean_head.net.") for key in state):
+        raise ValueError("This checkpoint uses the retired neural mean head. Use its archived experiment source or Git history to reproduce it; it cannot be loaded as a kernel head.")
     options = dict(payload.get("model_config", model_config or {}))
     if model_config is not None:
         options.update(model_config)
+    options.pop("mean_head_hidden_dim", None)  # Old Flow-only model metadata.
     options.setdefault("expression_dim", len(genes))
     options.setdefault("path_sigma", payload.get("args", {}).get("path_sigma", 0.5))
+    has_mean_head = any(key.startswith("mean_head.") for key in state)
+    options["use_mean_head"] = has_mean_head
+    if has_mean_head:
+        if payload.get("mean_assets") is None or payload.get("mean_features") is None:
+            raise ValueError("Kernel checkpoint lacks its fixed mean-query assets")
+        options["mean_assets"] = payload["mean_assets"]
+        options["mean_features"] = payload["mean_features"]
     if any(k.startswith("gene_condition.map_projector.") for k in state):
         options["map_projector"] = FrozenMAPGeneProjector(
             projector_checkpoint or {"model_state_dict": state},
@@ -1403,6 +1449,18 @@ def train(config):
         system = NormanGeneFlowMatchingSystem.from_checkpoint(settings["resume_checkpoint"], model_config=options,
                     expected_genes=genes, map_location=device)
     else:
+        if options.get("use_mean_head", False):
+            mean_path = out / "kernel_mean_assets.pt"
+            if rank == 0:
+                from devflow.data.norman import prepare_kernel_mean_assets
+                mean_assets, cv_report, mean_features = prepare_kernel_mean_assets(
+                    data, config.get("mean_head", {}))
+                _atomic_save(mean_path, {"mean_assets": mean_assets, "mean_features": mean_features})
+                write_json(out / "kernel_cv_report.json", cv_report)
+            if world > 1:
+                dist.barrier()
+            prepared = torch.load(mean_path, map_location="cpu", weights_only=False)
+            options.update(prepared)
         options["map_projector"] = FrozenMAPGeneProjector(
             paths["projector_checkpoint"],
             trainable_last_layer=projector_trainable,
@@ -1434,18 +1492,27 @@ def train(config):
                       broadcast_buffers=False, find_unused_parameters=True)
     named_parameters = [(name, parameter) for name, parameter in system.named_parameters()
                         if parameter.requires_grad]
-    parameters = [parameter for _, parameter in named_parameters]
-    base_parameters = [parameter for name, parameter in named_parameters
-                       if not name.startswith("gene_condition.map_projector.projector.mlp.4.")]
-    projector_parameters = [parameter for name, parameter in named_parameters
-                            if name.startswith("gene_condition.map_projector.projector.mlp.4.")]
+    projector_prefix = "gene_condition.map_projector.projector.mlp.4."
+    projector_parameters = [p for name, p in named_parameters if name.startswith(projector_prefix)]
+    head_parameters = [p for name, p in named_parameters if name.startswith("mean_head.")]
+    decoder_parameters = [p for name, p in named_parameters if name.startswith("decoder.")]
+    flow_parameters = [p for name, p in named_parameters
+                       if not name.startswith(("mean_head.", "decoder."))]
+    base_parameters = [p for name, p in named_parameters
+                       if not name.startswith(("mean_head.", "decoder.", projector_prefix))]
     base_lr = float(settings.get("learning_rate", 1e-4))
     projector_lr = float(settings.get("projector_last_layer_learning_rate", 1e-5))
     groups = []
-    if base_parameters:
-        groups.append({"params": base_parameters, "lr": base_lr})
-    if projector_parameters:
-        groups.append({"params": projector_parameters, "lr": projector_lr})
+    for group_parameters, lr in (
+        (base_parameters, base_lr), (decoder_parameters, base_lr),
+        (head_parameters, float(settings.get("mean_head_learning_rate", 1e-3))),
+        (projector_parameters, projector_lr),
+    ):
+        if group_parameters:
+            groups.append({"params": group_parameters, "lr": lr})
+    clip_options = settings.get("gradient_clip", 1.0)
+    clipping_groups = {"flow": flow_parameters, "head": head_parameters, "decoder": decoder_parameters}
+    all_parameters = [parameter for _, parameter in named_parameters]
     optimizer = torch.optim.Adam(groups)
     rng = np.random.default_rng(np.random.SeedSequence([seed, rank]))
     start = 0
@@ -1456,8 +1523,8 @@ def train(config):
                 raise ValueError("Optimizer parameter topology differs")
             optimizer.load_state_dict(resume["optimizer_state_dict"])
             if settings.get("override_learning_rate", False):
-                for group in optimizer.param_groups:
-                    group["lr"] = float(settings["learning_rate"])
+                for group, configured_group in zip(optimizer.param_groups, groups):
+                    group["lr"] = configured_group["lr"]
         start = int(resume["step"])
         if settings.get("resume_rng", True):
             if resume.get("world_size") != world or len(resume.get("rank_rng_states", [])) != world:
@@ -1471,21 +1538,11 @@ def train(config):
     control_mean = np.asarray(data["states"][data["train_controls"]], dtype=np.float64).mean(0).astype(np.float32)
     shifts = [np.asarray(data["states"][r["treated_rows"]], dtype=np.float64).mean(0).astype(np.float32) - control_mean
               for r in data["dataset"].records]
-    # Expression-space mean supervision is fit from the complete training
-    # treated pool for each condition, while the per-step MMD uses an
-    # independently sampled treated batch.
-    control_expression_mean = torch.as_tensor(
-        read_expression_rows(paths["h5ad"], data["train_controls"], data["indices"]).mean(0),
-        device=device, dtype=torch.float32)
-    condition_expression_means = {}
-    for record in data["dataset"].records:
-        values = read_expression_rows(paths["h5ad"], record["treated_rows"], data["indices"])
-        condition_expression_means[record["condition"]] = torch.as_tensor(
-            values.mean(0), device=device, dtype=torch.float32)
     batch = int(settings.get("batch_size", 128))
     if batch < 2:
         raise ValueError("batch_size must be at least two")
-    model_options = {k: v for k, v in options.items() if k != "map_projector"}
+    model_options = {k: v for k, v in options.items()
+                     if k not in {"map_projector", "mean_assets", "mean_features"}}
     if rank == 0:
         run_metadata = {"status": "training", "task": "norman19", "config": config,
                    "model_config": model_options, "gene_symbols": genes, "world_size": world,
@@ -1494,7 +1551,7 @@ def train(config):
                    "model_family": "mlp_mean",
                    "trainable_modules": [name for name, parameter in system.named_parameters() if parameter.requires_grad],
                    "gradient_routes": {"flow": "flow residual + latent mean shift",
-                                      "mean_head": "head MSE on detached shared condition",
+                                      "mean_head": "full training-anchor KRR loss; only coefficients A",
                                       "decoder": "MMD on composed expression with detached Flow endpoint and head mean"},
                    "projector_last_layer_learning_rate": float(settings.get("projector_last_layer_learning_rate", 1e-5)),
                    "mean_head_weight": float(settings.get("mean_head_weight", 1.0)),
@@ -1503,6 +1560,21 @@ def train(config):
         write_json(out / "run_config.json", config)
     system.train(); system.decoder.eval()
     started = time.monotonic()
+    evaluation = config.get("evaluation", {})
+    evaluation_every = int(evaluation.get("full_every", 0))
+    evaluation_seeds = evaluation.get("monitor_seeds", [4243])
+    if evaluation_every > 0 and list(evaluation_seeds) != [4243]:
+        raise ValueError("Norman online evaluation uses the fixed formal seed 4243")
+    probes = {}
+    initial_head_max = None
+    if rank == 0:
+        for route, prefix in (("flow", "velocity."), ("decoder", "decoder."), ("head", "mean_head.")):
+            candidates = [(name, parameter) for name, parameter in named_parameters
+                          if name.startswith(prefix) and (parameter.ndim == 1 or route == "head")]
+            probes[route] = [(name, parameter, parameter.detach().reshape(-1)[:128].clone())
+                             for name, parameter in candidates[:4]]
+        if system.mean_head is not None:
+            initial_head_max = float(system.mean_head.A.detach().abs().max())
     for step in range(start + 1, steps + 1):
         index = int(rng.integers(len(data["dataset"])))
         record = data["dataset"].records[index]
@@ -1517,15 +1589,13 @@ def train(config):
         context = torch.autocast("cuda", dtype=torch.bfloat16) if device.type == "cuda" and settings.get("amp_dtype", "bf16") == "bf16" else nullcontext()
         with context:
             condition_kwargs = kwargs_for(data, record["target_genes"])
-            head_target_delta = condition_expression_means[record["condition"]] - control_expression_mean
             loss, parts = wrapper(source, target, condition_kwargs,
                 torch.as_tensor(shifts[index], device=device), generator,
                 float(settings.get("ot_epsilon", 1.0)), int(settings.get("ot_max_iterations", 2000)),
                 float(settings.get("ot_tolerance", 1e-3)), float(settings.get("mean_shift_weight", 0.005)),
                 target_expression=expression,
                 apply_expression_mmd=step % int(settings.get("expression_mmd_every", 1)) == 0,
-                head_target_delta=head_target_delta,
-                control_expression_mean=control_expression_mean)
+                mean_condition=record["condition"])
         finite = torch.tensor(int(torch.isfinite(loss).item()), device=device)
         if world > 1:
             dist.all_reduce(finite, op=dist.ReduceOp.MIN)
@@ -1533,13 +1603,40 @@ def train(config):
             raise FloatingPointError(f"Nonfinite loss at step {step}")
         # Backward deliberately occurs outside autocast.
         loss.backward()
-        norm = torch.nn.utils.clip_grad_norm_(parameters, float(settings.get("gradient_clip", 1.0)))
+        if isinstance(clip_options, Mapping):
+            group_norms = {
+                name: torch.nn.utils.clip_grad_norm_(group_parameters, float(clip_options.get(name, 1.0))).to(device)
+                for name, group_parameters in clipping_groups.items() if group_parameters
+            }
+            norm = torch.stack(list(group_norms.values())).norm()
+        else:
+            # Scalar settings preserve the original single global norm clip.
+            norm = torch.nn.utils.clip_grad_norm_(all_parameters, float(clip_options)).to(device)
+            group_norms = {"global": norm}
         finite = torch.tensor(int(torch.isfinite(norm).item()), device=device)
         if world > 1:
             dist.all_reduce(finite, op=dist.ReduceOp.MIN)
         if not int(finite.item()):
             raise FloatingPointError(f"Nonfinite gradient at step {step}")
         optimizer.step()
+        if step == start + 1 and rank == 0:
+            updates = {route: {name: float((parameter.detach().reshape(-1)[:128] - before).abs().max())
+                              for name, parameter, before in items}
+                       for route, items in probes.items()}
+            write_json(out / "FIRST_UPDATE.json", {
+                "optimizer_step": step, "start_step": start, "world_size": world,
+                "flow_initialized_from_scratch": resume is None,
+                "decoder_initial_checkpoint": str(paths["decoder_checkpoint"]),
+                "decoder_initial_checkpoint_sha256": sha256_file(paths["decoder_checkpoint"]),
+                "head_initial_max_abs_coefficient": initial_head_max,
+                "head_initialized_from_zero": initial_head_max == 0.0 if resume is None else None,
+                "sampled_parameter_max_abs_updates": updates,
+                "updated": {route: any(value > 0 for value in changes.values())
+                            for route, changes in updates.items()},
+                "gradient_clipping": "per_group" if isinstance(clip_options, Mapping) else "global",
+                "gradient_clip": clip_options,
+            })
+            probes.clear()
         if step == start + 1 or step % int(settings.get("log_every", 10)) == 0 or step == steps:
             row = {"step": step, "total_loss": float(loss.detach()), "gradient_norm_before_clip": float(norm),
                    "learning_rate": optimizer.param_groups[0]["lr"],
@@ -1547,8 +1644,10 @@ def train(config):
                        optimizer.param_groups[-1]["lr"] if projector_parameters else 0.0
                    ),
                    "elapsed_seconds": time.monotonic() - started}
+            row.update({f"gradient_norm_{name}_before_clip": float(value)
+                        for name, value in group_norms.items()})
             metric_names = ("flow_loss", "residual_flow_loss", "mean_shift_loss",
-                            "head_loss", "weighted_head_loss",
+                            "head_loss", "weighted_head_loss", "head_fit_loss", "head_regularization_loss",
                             "decoder_mmd_loss", "weighted_decoder_mmd_loss",
                             "expression_mmd_loss", "weighted_expression_mmd_loss",
                             "expression_mean_loss", "weighted_expression_mean_loss",
@@ -1557,6 +1656,7 @@ def train(config):
             for name in metric_names:
                 value = parts.get(name)
                 row[name] = float(value.detach()) if isinstance(value, torch.Tensor) else 0.0
+            row["weighted_mean_shift_loss"] = float(settings.get("mean_shift_weight", 0.005)) * row["mean_shift_loss"]
             if world > 1:
                 keys = list(row)
                 values = torch.tensor([row[k] for k in keys], device=device, dtype=torch.float64)
@@ -1568,7 +1668,8 @@ def train(config):
         pause = torch.tensor(int(rank == 0 and (out / "REQUEST_PAUSE").exists()), device=device)
         if world > 1:
             dist.broadcast(pause, 0)
-        if step % int(settings.get("save_every", 5000)) == 0 or step == steps or pause.item():
+        evaluate_now = evaluation_every > 0 and step % evaluation_every == 0 and not pause.item()
+        if step % int(settings.get("save_every", 5000)) == 0 or step == steps or pause.item() or evaluate_now:
             local_state = _capture_rng(rng, device)
             states = [None] * world if rank == 0 else None
             if world > 1:
@@ -1578,6 +1679,7 @@ def train(config):
             if rank == 0:
                 _atomic_save(out / f"checkpoint_step_{step:08d}.pt", {
                     "model_family": system.model_family, "model_state_dict": system.state_dict(),
+                    "mean_assets": system.export_mean_assets(), "mean_features": system.mean_features,
                     "optimizer_state_dict": optimizer.state_dict(), "model_config": model_options,
                     "step": step, "gene_symbols": genes, "world_size": world,
                     "resume_schema": 2, "rank_rng_states": states,
@@ -1586,6 +1688,31 @@ def train(config):
                     "config": config, "decoder_frozen": not settings.get("train_decoder", True)})
             if world > 1:
                 dist.barrier()
+        if evaluate_now:
+            evaluation_ok = torch.ones((), device=device, dtype=torch.int32)
+            if rank == 0:
+                write_json(out / "status.json", {"status": "evaluating", "step": step})
+                env = os.environ.copy()
+                for key in list(env):
+                    if key in {"RANK", "WORLD_SIZE", "LOCAL_RANK", "LOCAL_WORLD_SIZE", "GROUP_RANK", "ROLE_RANK", "ROLE_WORLD_SIZE", "MASTER_ADDR", "MASTER_PORT"} or key.startswith("TORCHELASTIC_"):
+                        env.pop(key, None)
+                command = [sys.executable, "-m", "benchmark.reproduce.norman_checkpoint_monitor",
+                           "--config", str(out / "run_config.json"), "--run", str(out),
+                           "--steps", str(step), "--seed", "4243",
+                           "--references", str(Path(config["references"]["output_dir"]).resolve())]
+                try:
+                    with (out / "online_evaluation.log").open("a") as stream:
+                        subprocess.run(command, env=env, stdout=stream, stderr=subprocess.STDOUT, check=True)
+                except Exception as exc:
+                    evaluation_ok.zero_()
+                    write_json(out / "ONLINE_EVALUATION_FAILED.json", {
+                        "optimizer_step": step, "error": str(exc), "command": command})
+            if world > 1:
+                dist.broadcast(evaluation_ok, 0)
+            if not int(evaluation_ok.item()):
+                raise RuntimeError(f"Formal online evaluation failed at optimizer step {step}; see online_evaluation.log")
+            if rank == 0:
+                write_json(out / "status.json", {"status": "training", "step": step})
         if pause.item():
             if rank == 0:
                 write_json(out / "status.json", {"status": "paused", "step": step})
@@ -1820,15 +1947,8 @@ def predict(config):
         raise ValueError("Evaluation split differs from the checkpoint training split")
     seeds, plan = _validated_sampling_plan(data, settings)
     records_by_name = {r["condition"]: r for r in data["test_dataset"].records}
-    # The mean head is trained against the global training-control expression
-    # mean. It is part of the exported prediction path too: decode the latent
-    # endpoint first, then compose the complete condition batch so that its
-    # mean equals control_mean + predicted_delta. Composition must happen
-    # after all chunks for a condition have been concatenated.
-    control_expression_mean = torch.as_tensor(
-        read_expression_rows(data["paths"]["h5ad"], data["train_controls"], data["indices"]).mean(0),
-        device=device, dtype=torch.float32,
-    )
+    # Checkpointed kernel assets supply the condition mean. Compose only after
+    # all raw decoder chunks for a condition have been concatenated.
     out = Path(settings.get("output_dir", str(Path(config["output_dir"]) / "predictions")))
     out.mkdir(parents=True, exist_ok=True)
     if device.type == "cuda":
@@ -1856,9 +1976,7 @@ def predict(config):
                     raw_chunks.append(model.decoder(endpoint).float())
                 raw_prediction = torch.cat(raw_chunks, dim=0)
                 if model.mean_head is not None:
-                    condition = model._gene_condition_for_cells(kwargs, 1)
-                    predicted_delta = model.mean_head(condition)[0].float()
-                    final_mean = control_expression_mean + predicted_delta
+                    final_mean = model.predict_condition_mean(r["condition"])
                     prediction = compose_expression(
                         raw_prediction, final_mean, detach_mean=True,
                         output_dtype=torch.float32,
