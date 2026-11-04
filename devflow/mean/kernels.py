@@ -48,6 +48,21 @@ def _validate_pair_inputs(features, fingerprints):
         raise ValueError("A pair kernel condition cannot contain two empty drug slots")
 
 
+def _sum_drug_kernel(x, f, y, g, *, mix, scale):
+    """Kernel of summed single-drug features; empty padding contributes zero."""
+    xs, ys = x.reshape(len(x), 2, -1), y.reshape(len(y), 2, -1)
+    fs, gs = f.reshape(len(f), 2, -1), g.reshape(len(g), 2, -1)
+    present_x, present_y = fs.any(2), gs.any(2)
+    result = np.zeros((len(x), len(y)), dtype=np.float64)
+    for i in range(2):
+        for j in range(2):
+            values = (1.0 - mix) * tanimoto(fs[:, i], gs[:, j])
+            if mix > 0:
+                values += mix * np.exp(-scale * squared_distances(xs[:, i], ys[:, j]))
+            result += values * (present_x[:, i, None] & present_y[None, :, j])
+    return result
+
+
 def center_training_kernel(kernel):
     kernel = np.asarray(kernel, dtype=np.float64)
     column_mean = kernel.mean(axis=0)
@@ -98,19 +113,23 @@ class MixedKernelBank:
     training_column_means: np.ndarray
     training_grand_means: np.ndarray
     pair_permutation_invariant: bool = False
+    pair_aggregation: str = "concat"
 
     @classmethod
     def fit(cls, train_features, train_fingerprints, specs: Sequence[Mapping], *,
-            pair_permutation_invariant=False):
+            pair_permutation_invariant=False, pair_aggregation="concat"):
         """Fit training-only scales and optionally average both pair alignments.
 
         A shared slot transform makes simultaneous permutation an isometry.
         The aligned/crossed average is then the full four-term group average,
         so the permutation-invariant RBF and Tanimoto kernels remain PSD.
+        ``sum`` instead adds single-drug kernels and ignores empty slots.
         """
         if not isinstance(pair_permutation_invariant, (bool, np.bool_)):
             raise ValueError("pair_permutation_invariant must be a boolean")
         pair_permutation_invariant = bool(pair_permutation_invariant)
+        if pair_aggregation not in ("concat", "sum") or (pair_aggregation == "sum" and not pair_permutation_invariant):
+            raise ValueError("Single-drug sum kernels require explicit permutation-invariant pairs")
         x = np.asarray(train_features, dtype=np.float64)
         fingerprints = np.asarray(train_fingerprints, dtype=np.uint8)
         if x.ndim != 2 or len(x) < 2 or not np.isfinite(x).all():
@@ -122,14 +141,23 @@ class MixedKernelBank:
         if pair_permutation_invariant:
             _validate_pair_inputs(x, fingerprints)
             slots = x.reshape(len(x), 2, -1)
-            mean = np.tile(slots.mean(axis=(0, 1)), 2)
-            std = np.tile(slots.std(axis=(0, 1)), 2)
+            if pair_aggregation == "sum":
+                present = fingerprints.reshape(len(x), 2, -1).any(2)
+                mean = np.tile(slots[present].mean(0), 2)
+                std = np.tile(slots[present].std(0), 2)
+            else:
+                mean = np.tile(slots.mean(axis=(0, 1)), 2)
+                std = np.tile(slots.std(axis=(0, 1)), 2)
         else:
             mean, std = x.mean(0), x.std(0)
         std[std < 1e-6] = 1.0  # Original MAPKG training-only standardisation.
         z = (x - mean) / std
         distances = squared_distances(z, z)
-        if pair_permutation_invariant:
+        if pair_aggregation == "sum":
+            observed = z.reshape(len(z), 2, -1)[present]
+            drug_distances = squared_distances(observed, observed)
+            positive = drug_distances[drug_distances > 1e-12]
+        elif pair_permutation_invariant:
             crossed_distances = squared_distances(z, _swap_pair_slots(z))
             distinct = np.triu_indices(len(x), k=1)
             scale_distances = np.concatenate((distances[distinct], crossed_distances[distinct]))
@@ -151,7 +179,10 @@ class MixedKernelBank:
                 raise ValueError("kg_mix must lie in [0,1]")
             if mix > 0 and (factor is None or float(factor) <= 0):
                 raise ValueError("An RBF component requires a positive gamma_factor")
-            if pair_permutation_invariant and mix > 0:
+            if pair_aggregation == "sum":
+                kernel = _sum_drug_kernel(z, fingerprints, z, fingerprints,
+                    mix=mix, scale=float(factor) / median if mix > 0 else 0.0)
+            elif pair_permutation_invariant and mix > 0:
                 rbf = 0.5 * (np.exp(-float(factor) / median * distances)
                              + np.exp(-float(factor) / median * crossed_distances))
                 kernel = mix * rbf + (1.0 - mix) * structural
@@ -167,7 +198,7 @@ class MixedKernelBank:
             raise ValueError("At least one stratum specification is required")
         return cls(mean, std, z, fingerprints.copy(), clean_specs, median,
                    np.stack(matrices), np.stack(columns), np.asarray(grands),
-                   pair_permutation_invariant=pair_permutation_invariant)
+                   pair_permutation_invariant=pair_permutation_invariant, pair_aggregation=pair_aggregation)
 
     def query(self, features, fingerprints, stratum: int):
         s = int(stratum)
@@ -191,7 +222,10 @@ class MixedKernelBank:
             structural = 0.5 * (structural + tanimoto(f, _swap_pair_slots(self.fingerprint_train)))
         spec = self.specs[s]
         mix = float(spec["kg_mix"])
-        if self.pair_permutation_invariant and mix > 0:
+        if self.pair_aggregation == "sum":
+            kernel = _sum_drug_kernel(z, f, self.x_train, self.fingerprint_train,
+                mix=mix, scale=float(spec["gamma_factor"]) / self.median_squared_distance if mix > 0 else 0.0)
+        elif self.pair_permutation_invariant and mix > 0:
             scale = float(spec["gamma_factor"]) / self.median_squared_distance
             rbf = 0.5 * (np.exp(-scale * squared_distances(z, self.x_train))
                          + np.exp(-scale * squared_distances(z, _swap_pair_slots(self.x_train))))
@@ -205,7 +239,7 @@ class MixedKernelBank:
                                    self.training_grand_means[s])
 
     def to_assets(self):
-        return dict(feature_mean=self.feature_mean.copy(), feature_std=self.feature_std.copy(),
+        assets = dict(feature_mean=self.feature_mean.copy(), feature_std=self.feature_std.copy(),
                     x_train=self.x_train.copy(), fingerprint_train=self.fingerprint_train.copy(),
                     specs=[dict(x) for x in self.specs],
                     median_squared_distance=self.median_squared_distance,
@@ -213,12 +247,18 @@ class MixedKernelBank:
                     training_column_means=self.training_column_means.copy(),
                     training_grand_means=self.training_grand_means.copy(),
                     pair_permutation_invariant=self.pair_permutation_invariant)
+        if self.pair_aggregation != "concat":
+            assets["pair_aggregation"] = self.pair_aggregation
+        return assets
 
     @classmethod
     def from_assets(cls, assets):
         pair_permutation_invariant = assets.get("pair_permutation_invariant", False)
         if not isinstance(pair_permutation_invariant, (bool, np.bool_)):
             raise ValueError("Saved pair_permutation_invariant must be a boolean")
+        aggregation = assets.get("pair_aggregation", "concat")
+        if aggregation not in ("concat", "sum") or (aggregation == "sum" and not pair_permutation_invariant):
+            raise ValueError("Unsupported saved pair kernel aggregation")
         return cls(
             np.asarray(assets["feature_mean"], dtype=np.float64),
             np.asarray(assets["feature_std"], dtype=np.float64),
@@ -228,9 +268,8 @@ class MixedKernelBank:
             np.asarray(assets["train_kernels"], dtype=np.float64),
             np.asarray(assets["training_column_means"], dtype=np.float64),
             np.asarray(assets["training_grand_means"], dtype=np.float64),
-            pair_permutation_invariant=bool(pair_permutation_invariant))
-
-
+            pair_permutation_invariant=bool(pair_permutation_invariant), pair_aggregation=aggregation)
+]633;E;printf '\\n@dataclass\\n';03aaa33e-8385-4175-a1d2-38493c97f47c]633;C
 @dataclass
 class ContinuousPairKernelBank:
     """Fixed, centred mixture of two continuous pair representations.

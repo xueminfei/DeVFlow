@@ -30,14 +30,14 @@
   "training": {
     "checkpoint": null,
     "max_updates": 13000,
-    "world_size": 4,
+    "world_size": 8,
     "seed": 42,
     "precision": "bf16",
     "allow_tf32": true,
     "pairs_per_condition": 256,
     "ot_candidates": 256,
     "decoder_cells": 256,
-    "gradient_accumulation": 4,
+    "gradient_accumulation": 2,
     "time_points": 80,
     "learning_rates": {
       "flow": 5e-05,
@@ -61,20 +61,30 @@
     "cpu_threads": 2
   },
   "mean_head": {
-    "kernel": "canonical_pair_concat_MAPKG_RBF_Morgan_Tanimoto",
-    "selection": "leave_one_training_combination_out",
+    "kernel": "sum_single_drug_MAPKG_RBF_Morgan_Tanimoto",
+    "selection": "leave_one_seen_drug_training_combination_out",
     "kg_mix_grid": [
       0.0,
+      0.25,
       0.5,
+      0.75,
       1.0
     ],
     "gamma_factor_grid": [
+      0.125,
+      0.25,
       0.5,
       1.0,
-      2.0
+      2.0,
+      4.0
     ],
     "alpha_grid": [
+      1e-05,
+      3e-05,
+      0.0001,
+      0.0003,
       0.001,
+      0.003,
       0.01,
       0.1,
       1.0,
@@ -115,15 +125,16 @@
   },
   "selection": {
     "protocol": "external_selected_exploratory",
-    "primary_metric": "weighted_mse",
+    "primary_metric": "composite_rank",
     "direction": "min",
     "tie_break": "earliest_update",
     "benchmark_selected": true,
-    "single_checkpoint_for_all_reported_metrics": true
+    "single_checkpoint_for_all_reported_metrics": true,
+    "policy": "equal_panel_equal_family_mean_normalized_rank_v1"
   },
   "output_dir": "outputs/combosciplex_mlp_mean_mmd_13k",
-  "purpose": "Fresh Combo 13k optimizer updates; trainable mean and decoder-only MMD; external-selected exploratory four-seed result",
+  "purpose": "Fresh Combo sum-kernel Flow and zero A, strong decoder initialization; 8 GPUs x accumulation 2, 13k optimizer updates; external-selected exploratory four-seed result",
   "reporting": {
-    "method": "DeVFlow Combo MLP + trainable mixed-kernel mean + decoder MMD (13k)"
+    "method": "DeVFlow Combo MLP + sum mean + decoder MMD (8 GPU, acc2, 13k)"
   }
 }
