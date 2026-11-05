@@ -1,7 +1,6 @@
 # DeVFlow
 
-DeVFlow predicts single-cell responses to chemical and genetic perturbations
-using conditional flow matching.
+a knowledge-enhanced decomposed flow-matching framework that combines cell-level variation modeling with explicit expression-mean calibration.
 
 
 ## Overview
@@ -25,8 +24,7 @@ export DEVFLOW_DATA_ROOT=/path/to/prepared_data
 export DEVFLOW_ASSET_ROOT=/path/to/prepared_assets
 export DEVFLOW_WEIGHT_ROOT=/path/to/pretrained_weights
 ```
-
-Download links will be added here when the assets are released.
+Pretrained assets: https://drive.google.com/drive/folders/1UY2cqFqpyj71lEBfeIMzz_AWypCi5RsB?usp=drive_link
 
 ## Preprocessing
 
